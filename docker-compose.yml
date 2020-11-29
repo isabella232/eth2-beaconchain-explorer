@@ -10,19 +10,20 @@ services:
         command: 
             - --goerli
 
-
     postgres:
         image: postgres:12.0
         container_name: postgres 
         restart: always
         environment:
-            - POSTGRES_PASSWORD=pass
-            - POSTGRES_USER=postgres
-            - POSTGRES_DB=db
-            - PGDATA=/postgresql/data
-        volumes:
-            - db:/postgresql/data
-        network_mode: host
+            - POSTGRES_PASSWORD=debug
+            - POSTGRES_USER=debug
+            - POSTGRES_DB=beaconcha
+            - POSTGRES_HOST=postgres
+            - POSTGRES_PORT=5432
+#        command: docker exec -i 46bc72682b79 psql -U debug -d beaconcha < tables.sql
+#        command: ["/bin/sh -c postgres.sh"]
+        ports:
+            - "5432:5432"
 
     prysm:
         image: gcr.io/prysmaticlabs/prysm/beacon-chain:latest
@@ -42,20 +43,28 @@ services:
             - eth1
 
     go:
-        image: golang:1.14
+        image: golang:1.14-alpine
         container_name: golang 
         restart: always
         volumes:
             - ./:/usr/src/app
         working_dir: /usr/src/app
-        network_mode: host
+#        network_mode: host
         depends_on:
-            - eth1
+#            - eth1
             - postgres
-            - prysm
+#            - prysm
         command: /bin/sh
         stdin_open: true
         tty: true
 
+    explorer:
+        build:
+            context: .
+            dockerfile: Dockerfile
+#        command: go run
+        depends_on:
+            - postgres
+        restart: always
 volumes: 
     db:

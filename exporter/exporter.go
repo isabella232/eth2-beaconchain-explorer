@@ -253,16 +253,18 @@ func Start(client rpc.Client) error {
 			}
 		}
 
-		// Add not yet exported epochs to the export set (for example during the initial sync)
-		if len(epochs) > 0 && epochs[len(epochs)-1] < head.HeadEpoch {
-			for i := epochs[len(epochs)-1]; i <= head.HeadEpoch; i++ {
-				epochsToExport[i] = true
-			}
-		} else if len(epochs) > 0 && epochs[0] != 0 { // Export the genesis epoch if not yet present in the db
-			epochsToExport[0] = true
-		} else if len(epochs) == 0 { // No epochs are present int the db
-			for i := uint64(0); i <= head.HeadEpoch; i++ {
-				epochsToExport[i] = true
+		if utils.Config.Indexer.UpdateAllEpoch{
+			// Add not yet exported epochs to the export set (for example during the initial sync)
+			if len(epochs) > 0 && epochs[len(epochs)-1] < head.HeadEpoch {
+				for i := epochs[len(epochs)-1]; i <= head.HeadEpoch; i++ {
+					epochsToExport[i] = true
+				}
+			} else if len(epochs) > 0 && epochs[0] != 0 { // Export the genesis epoch if not yet present in the db
+				epochsToExport[0] = true
+			} else if len(epochs) == 0 { // No epochs are present int the db
+				for i := uint64(0); i <= head.HeadEpoch; i++ {
+					epochsToExport[i] = true
+				}
 			}
 		}
 
@@ -360,7 +362,6 @@ func MarkOrphanedBlocks(startEpoch, endEpoch uint64, blocks []*types.MinimalBloc
 // GetLastBlocks will get all blocks for a range of epochs
 func GetLastBlocks(startEpoch, endEpoch uint64, client rpc.Client) ([]*types.MinimalBlock, error) {
 	wrappedBlocks := make([]*types.MinimalBlock, 0)
-
 	for epoch := startEpoch; epoch <= endEpoch; epoch++ {
 		startSlot := epoch * utils.Config.Chain.SlotsPerEpoch
 		endSlot := (epoch+1)*utils.Config.Chain.SlotsPerEpoch - 1

@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"context"
+	"encoding/hex"
 	"eth2-exporter/types"
 	"eth2-exporter/utils"
 	"fmt"
@@ -178,7 +179,9 @@ func (pc *PrysmClient) GetEpochAssignments(epoch uint64) (*types.EpochAssignment
 	// Retrieve the currently active validator set in order to map public keys to indexes
 	validators := make(map[string]uint64)
 	validatorsResponse := &ethpb.Validators{}
-	validatorsRequest := &ethpb.ListValidatorsRequest{PageSize: utils.Config.Indexer.Node.PageSize, PageToken: validatorsResponse.NextPageToken, QueryFilter: &ethpb.ListValidatorsRequest_Epoch{Epoch: epoch}}
+	decoded, err := hex.DecodeString("b568d7f5f54fbb74443252e24ea5573fda3ae91af685268239b2c071fb55f9d5e8bc82e25c446468499e765ea6d82aed")
+	var pubeys = [][]byte{decoded}
+	validatorsRequest := &ethpb.ListValidatorsRequest{PublicKeys: pubeys, QueryFilter: &ethpb.ListValidatorsRequest_Epoch{Epoch: epoch}}
 	if epoch == 0 {
 		validatorsRequest.QueryFilter = &ethpb.ListValidatorsRequest_Genesis{Genesis: true}
 	}
@@ -201,11 +204,10 @@ func (pc *PrysmClient) GetEpochAssignments(epoch uint64) (*types.EpochAssignment
 			break
 		}
 	}
-
 	// Retrieve the validator assignments for the epoch
 	validatorAssignmentes := make([]*ethpb.ValidatorAssignments_CommitteeAssignment, 0)
 	validatorAssignmentResponse := &ethpb.ValidatorAssignments{}
-	validatorAssignmentRequest := &ethpb.ListValidatorAssignmentsRequest{PageToken: validatorAssignmentResponse.NextPageToken, PageSize: utils.Config.Indexer.Node.PageSize, QueryFilter: &ethpb.ListValidatorAssignmentsRequest_Epoch{Epoch: epoch}}
+	validatorAssignmentRequest := &ethpb.ListValidatorAssignmentsRequest{PublicKeys: pubeys, QueryFilter: &ethpb.ListValidatorAssignmentsRequest_Epoch{Epoch: epoch}}
 	if epoch == 0 {
 		validatorAssignmentRequest.QueryFilter = &ethpb.ListValidatorAssignmentsRequest_Genesis{Genesis: true}
 	}
@@ -237,7 +239,7 @@ func (pc *PrysmClient) GetEpochAssignments(epoch uint64) (*types.EpochAssignment
 		}
 	}
 
-	if len(assignments.AttestorAssignments) > 0 && len(assignments.ProposerAssignments) > 0 {
+	if len(assignments.AttestorAssignments) > 0 || len(assignments.ProposerAssignments) > 0 {
 		pc.assignmentsCache.Add(epoch, assignments)
 	}
 
@@ -256,9 +258,11 @@ func (pc *PrysmClient) GetEpochData(epoch uint64) (*types.EpochData, error) {
 
 	// Retrieve the validator balances for the epoch (NOTE: Currently the API call is broken and allows only to retrieve the balances for the current epoch
 	validatorBalancesByPubkey := make(map[string]uint64)
+	decoded, err := hex.DecodeString("b568d7f5f54fbb74443252e24ea5573fda3ae91af685268239b2c071fb55f9d5e8bc82e25c446468499e765ea6d82aed")
+	var pubeys = [][]byte{decoded}
 
 	validatorBalancesResponse := &ethpb.ValidatorBalances{}
-	validatorBalancesRequest := &ethpb.ListValidatorBalancesRequest{PageSize: utils.Config.Indexer.Node.PageSize, PageToken: validatorBalancesResponse.NextPageToken, QueryFilter: &ethpb.ListValidatorBalancesRequest_Epoch{Epoch: epoch}}
+	validatorBalancesRequest := &ethpb.ListValidatorBalancesRequest{PublicKeys: pubeys, PageSize: utils.Config.Indexer.Node.PageSize, PageToken: validatorBalancesResponse.NextPageToken, QueryFilter: &ethpb.ListValidatorBalancesRequest_Epoch{Epoch: epoch}}
 	if epoch == 0 {
 		validatorBalancesRequest.QueryFilter = &ethpb.ListValidatorBalancesRequest_Genesis{Genesis: true}
 	}
@@ -349,7 +353,7 @@ func (pc *PrysmClient) GetEpochData(epoch uint64) (*types.EpochData, error) {
 	// Retrieve the validator set for the epoch
 	data.Validators = make([]*types.Validator, 0)
 	validatorResponse := &ethpb.Validators{}
-	validatorRequest := &ethpb.ListValidatorsRequest{PageToken: validatorResponse.NextPageToken, PageSize: utils.Config.Indexer.Node.PageSize, QueryFilter: &ethpb.ListValidatorsRequest_Epoch{Epoch: epoch}}
+	validatorRequest := &ethpb.ListValidatorsRequest{PublicKeys: pubeys, PageToken: validatorResponse.NextPageToken, PageSize: utils.Config.Indexer.Node.PageSize, QueryFilter: &ethpb.ListValidatorsRequest_Epoch{Epoch: epoch}}
 	if epoch == 0 {
 		validatorRequest.QueryFilter = &ethpb.ListValidatorsRequest_Genesis{Genesis: true}
 	}
@@ -564,9 +568,11 @@ func (pc *PrysmClient) GetBlocksBySlot(slot uint64) ([]*types.Block, error) {
 				if aggregationBits.BitAt(i) {
 					validator, found := assignments.AttestorAssignments[utils.FormatAttestorAssignmentKey(a.Data.Slot, a.Data.CommitteeIndex, i)]
 					if !found { // This should never happen!
-						validator = 0
-						logger.Errorf("error retrieving assigned validator for attestation %v of block %v for slot %v committee index %v member index %v", i, b.Slot, a.Data.Slot, a.Data.CommitteeIndex, i)
+						//validator = 0
+						//logger.Errorf("error retrieving assigned validator for attestation %v of block %v for slot %v committee index %v member index %v", i, b.Slot, a.Data.Slot, a.Data.CommitteeIndex, i)
+						continue
 					}
+					logger.Errorf("retrieving assigned validator for attestation %v of block %v for slot %v committee index %v member index %v", i, b.Slot, a.Data.Slot, a.Data.CommitteeIndex, i)
 					a.Attesters = append(a.Attesters, validator)
 				}
 			}
