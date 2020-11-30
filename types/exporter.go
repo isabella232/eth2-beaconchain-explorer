@@ -4,6 +4,7 @@ import (
 	ethpb "github.com/prysmaticlabs/ethereumapis/eth/v1alpha1"
 )
 
+
 // ChainHead is a struct to hold chain head data
 type ChainHead struct {
 	HeadSlot                   uint64

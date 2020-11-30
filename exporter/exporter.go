@@ -3,6 +3,7 @@ package exporter
 import (
 	"bytes"
 	"eth2-exporter/db"
+	httpRest "eth2-exporter/http"
 	"eth2-exporter/rpc"
 	"eth2-exporter/types"
 	"eth2-exporter/utils"
@@ -21,7 +22,7 @@ var logger = logrus.New().WithField("module", "exporter")
 var epochBlacklist = make(map[uint64]uint64)
 
 // Start will start the export of data from rpc into the database
-func Start(client rpc.Client) error {
+func Start(client rpc.Client, httpClient httpRest.Client) error {
 	go performanceDataUpdater()
 	go networkLivenessUpdater(client)
 	go eth1DepositsExporter()
@@ -45,7 +46,7 @@ func Start(client rpc.Client) error {
 		}
 
 		for epoch := uint64(1); epoch <= head.HeadEpoch; epoch++ {
-			err := ExportEpoch(epoch, client)
+			err := ExportEpoch(epoch, types.Accounts{}, client)
 
 			if err != nil {
 				logger.Error(err)
@@ -61,7 +62,7 @@ func Start(client rpc.Client) error {
 		}
 
 		if len(epochs) > 0 && epochs[0] != 0 {
-			err := ExportEpoch(0, client)
+			err := ExportEpoch(0, types.Accounts{}, client)
 			if err != nil {
 				logger.Error(err)
 			}
@@ -74,7 +75,7 @@ func Start(client rpc.Client) error {
 				logger.Println("Epochs between", epochs[i], "and", epochs[i+1], "are missing!")
 
 				for epoch := epochs[i]; epoch <= epochs[i+1]; epoch++ {
-					err := ExportEpoch(epoch, client)
+					err := ExportEpoch(epoch, types.Accounts{}, client)
 					if err != nil {
 						logger.Error(err)
 					}
@@ -96,7 +97,7 @@ func Start(client rpc.Client) error {
 			logger.Fatal(err)
 		}
 
-		nodeBlocks, err := GetLastBlocks(1, head.HeadEpoch, client)
+		nodeBlocks, err := GetLastBlocks(1, head.HeadEpoch, nil, client)
 		if err != nil {
 			logger.Fatal(err)
 		}
@@ -150,7 +151,7 @@ func Start(client rpc.Client) error {
 		})
 
 		for _, epoch := range keys {
-			err = ExportEpoch(epoch, client)
+			err = ExportEpoch(epoch, types.Accounts{}, client)
 
 			if err != nil {
 				logger.Errorf("error exporting epoch: %v", err)
@@ -176,6 +177,7 @@ func Start(client rpc.Client) error {
 
 	for true {
 		time.Sleep(time.Second * 10)
+		accounts := GetValidators(httpClient)
 		logger.Infof("checking for new blocks/epochs to export")
 
 		head, err := client.GetChainHead()
@@ -200,7 +202,7 @@ func Start(client rpc.Client) error {
 			continue
 		}
 
-		nodeBlocks, err := GetLastBlocks(startEpoch, head.HeadEpoch, client)
+		nodeBlocks, err := GetLastBlocks(startEpoch, head.HeadEpoch, accounts, client)
 		if err != nil {
 			logger.Errorf("error retrieving last blocks from backend node: %v", err)
 			continue
@@ -286,7 +288,7 @@ func Start(client rpc.Client) error {
 
 			logger.Printf("exporting epoch %v", epoch)
 
-			err = ExportEpoch(epoch, client)
+			err = ExportEpoch(epoch, accounts, client)
 
 			if err != nil {
 				logger.Errorf("error exporting epoch: %v", err)
@@ -360,13 +362,13 @@ func MarkOrphanedBlocks(startEpoch, endEpoch uint64, blocks []*types.MinimalBloc
 }
 
 // GetLastBlocks will get all blocks for a range of epochs
-func GetLastBlocks(startEpoch, endEpoch uint64, client rpc.Client) ([]*types.MinimalBlock, error) {
+func GetLastBlocks(startEpoch, endEpoch uint64, accounts types.Accounts, client rpc.Client) ([]*types.MinimalBlock, error) {
 	wrappedBlocks := make([]*types.MinimalBlock, 0)
 	for epoch := startEpoch; epoch <= endEpoch; epoch++ {
 		startSlot := epoch * utils.Config.Chain.SlotsPerEpoch
 		endSlot := (epoch+1)*utils.Config.Chain.SlotsPerEpoch - 1
 		for slot := startSlot; slot <= endSlot; slot++ {
-			blocks, err := client.GetBlocksBySlot(slot)
+			blocks, err := client.GetBlocksBySlot(slot, accounts)
 			if err != nil {
 				return nil, err
 			}
@@ -388,11 +390,11 @@ func GetLastBlocks(startEpoch, endEpoch uint64, client rpc.Client) ([]*types.Min
 }
 
 // ExportEpoch will export an epoch from rpc into the database
-func ExportEpoch(epoch uint64, client rpc.Client) error {
+func ExportEpoch(epoch uint64, accounts types.Accounts, client rpc.Client) error {
 	start := time.Now()
 
 	logger.Printf("retrieving data for epoch %v", epoch)
-	data, err := client.GetEpochData(epoch)
+	data, err := client.GetEpochData(epoch, accounts)
 
 	if err != nil {
 		return fmt.Errorf("error retrieving epoch data: %v", err)
@@ -777,4 +779,15 @@ func genesisDepositsExporter() {
 		logger.Infof("exported genesis-deposits for %v genesis-validators", genesisValidatorsCount)
 		return
 	}
+}
+
+func GetValidators(client httpRest.Client) types.Accounts {
+	logger.Infof("getting accounts...")
+	accounts, err := client.GetAccounts()
+	if err != nil{
+		logger.Errorf("error getting accounts from validator center: %v", err)
+		return types.Accounts{}
+	}
+	logger.Infof("Got %v accounts", len(accounts))
+	return accounts
 }

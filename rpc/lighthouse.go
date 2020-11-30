@@ -81,7 +81,7 @@ func (lc *LighthouseClient) GetAttestationPool() ([]*types.Attestation, error) {
 }
 
 // GetEpochAssignments will get the epoch assignments from Lighthouse RPC api
-func (lc *LighthouseClient) GetEpochAssignments(epoch uint64) (*types.EpochAssignments, error) {
+func (lc *LighthouseClient) GetEpochAssignments(epoch uint64, accounts types.Accounts) (*types.EpochAssignments, error) {
 	lc.assignmentsCacheMux.Lock()
 	defer lc.assignmentsCacheMux.Unlock()
 
@@ -127,7 +127,7 @@ func (lc *LighthouseClient) GetEpochAssignments(epoch uint64) (*types.EpochAssig
 }
 
 // GetEpochData will get the epoch data from Lighthouse RPC api
-func (lc *LighthouseClient) GetEpochData(epoch uint64) (*types.EpochData, error) {
+func (lc *LighthouseClient) GetEpochData(epoch uint64, accounts types.Accounts) (*types.EpochData, error) {
 	var err error
 
 	data := &types.EpochData{}
@@ -177,7 +177,7 @@ func (lc *LighthouseClient) GetEpochData(epoch uint64) (*types.EpochData, error)
 
 	logger.Printf("retrieved data for %v validators for epoch %v", len(data.Validators), epoch)
 
-	data.ValidatorAssignmentes, err = lc.GetEpochAssignments(epoch)
+	data.ValidatorAssignmentes, err = lc.GetEpochAssignments(epoch, nil)
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving assignments for epoch %v: %v", epoch, err)
 	}
@@ -192,7 +192,7 @@ func (lc *LighthouseClient) GetEpochData(epoch uint64) (*types.EpochData, error)
 			continue
 		}
 
-		blocks, err := lc.GetBlocksBySlot(slot)
+		blocks, err := lc.GetBlocksBySlot(slot, nil)
 
 		if err != nil {
 			logger.Errorf("error retrieving blocks for slot %v: %v", slot, err)
@@ -271,7 +271,7 @@ func (lc *LighthouseClient) GetEpochData(epoch uint64) (*types.EpochData, error)
 }
 
 // GetBlocksBySlot will get the blocks by slot from Lighthouse RPC api
-func (lc *LighthouseClient) GetBlocksBySlot(slot uint64) ([]*types.Block, error) {
+func (lc *LighthouseClient) GetBlocksBySlot(slot uint64, accounts types.Accounts) ([]*types.Block, error) {
 	resp, err := lc.get(fmt.Sprintf("%v%v?slot=%v", lc.endpoint, "/beacon/block", slot))
 
 	if err != nil {
@@ -333,7 +333,7 @@ func (lc *LighthouseClient) GetBlocksBySlot(slot uint64) ([]*types.Block, error)
 		}
 
 		aggregationBits := bitfield.Bitlist(a.AggregationBits)
-		assignments, err := lc.GetEpochAssignments(a.Data.Slot / utils.Config.Chain.SlotsPerEpoch)
+		assignments, err := lc.GetEpochAssignments(a.Data.Slot/utils.Config.Chain.SlotsPerEpoch, nil)
 		if err != nil {
 			return nil, fmt.Errorf("error receiving epoch assignment for epoch %v: %v", a.Data.Slot/utils.Config.Chain.SlotsPerEpoch, err)
 		}

@@ -5,6 +5,7 @@ import (
 	"eth2-exporter/db"
 	"eth2-exporter/exporter"
 	"eth2-exporter/handlers"
+	httpRest "eth2-exporter/http"
 	"eth2-exporter/rpc"
 	"eth2-exporter/services"
 	"eth2-exporter/types"
@@ -50,6 +51,8 @@ func main() {
 
 	if utils.Config.Indexer.Enabled {
 		var rpcClient rpc.Client
+		var httpClient httpRest.Client
+		httpClient, err = httpRest.NewVCClient(cfg.Indexer.ValidatorCenter.BaseUrl)
 
 		if utils.Config.Indexer.Node.Type == "prysm" {
 			if utils.Config.Indexer.Node.PageSize == 0 {
@@ -73,7 +76,7 @@ func main() {
 			if len(utils.Config.Indexer.OneTimeExport.Epochs) > 0 {
 				logrus.Infof("onetimeexport epochs: %+v", utils.Config.Indexer.OneTimeExport.Epochs)
 				for _, epoch := range utils.Config.Indexer.OneTimeExport.Epochs {
-					err := exporter.ExportEpoch(epoch, rpcClient)
+					err := exporter.ExportEpoch(epoch, nil, rpcClient)
 					if err != nil {
 						logrus.Fatal(err)
 					}
@@ -81,7 +84,7 @@ func main() {
 			} else {
 				logrus.Infof("onetimeexport epochs: %v-%v", utils.Config.Indexer.OneTimeExport.StartEpoch, utils.Config.Indexer.OneTimeExport.EndEpoch)
 				for epoch := utils.Config.Indexer.OneTimeExport.StartEpoch; epoch <= utils.Config.Indexer.OneTimeExport.EndEpoch; epoch++ {
-					err := exporter.ExportEpoch(epoch, rpcClient)
+					err := exporter.ExportEpoch(epoch, nil, rpcClient)
 					if err != nil {
 						logrus.Fatal(err)
 					}
@@ -90,7 +93,7 @@ func main() {
 			return
 		}
 
-		go exporter.Start(rpcClient)
+		go exporter.Start(rpcClient, httpClient)
 	}
 
 	if cfg.Frontend.Enabled {

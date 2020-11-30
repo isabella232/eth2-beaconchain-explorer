@@ -6,6 +6,7 @@ import (
 	"eth2-exporter/types"
 	"eth2-exporter/utils"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -157,7 +158,7 @@ func (pc *PrysmClient) GetAttestationPool() ([]*types.Attestation, error) {
 }
 
 // GetEpochAssignments will get the epoch assignments from a Prysm client
-func (pc *PrysmClient) GetEpochAssignments(epoch uint64) (*types.EpochAssignments, error) {
+func (pc *PrysmClient) GetEpochAssignments(epoch uint64, accounts types.Accounts) (*types.EpochAssignments, error) {
 
 	pc.assignmentsCacheMux.Lock()
 	defer pc.assignmentsCacheMux.Unlock()
@@ -179,8 +180,15 @@ func (pc *PrysmClient) GetEpochAssignments(epoch uint64) (*types.EpochAssignment
 	// Retrieve the currently active validator set in order to map public keys to indexes
 	validators := make(map[string]uint64)
 	validatorsResponse := &ethpb.Validators{}
-	decoded, err := hex.DecodeString("b568d7f5f54fbb74443252e24ea5573fda3ae91af685268239b2c071fb55f9d5e8bc82e25c446468499e765ea6d82aed")
-	var pubeys = [][]byte{decoded}
+
+	pubeys := make([][]byte, len(accounts))
+	for i, account := range accounts {
+		decoded, err := hex.DecodeString(strings.ReplaceAll(account.PublicKey, "0x", ""))
+		if err == nil{
+			pubeys[i] = []byte(decoded)
+		}
+	}
+
 	validatorsRequest := &ethpb.ListValidatorsRequest{PublicKeys: pubeys, QueryFilter: &ethpb.ListValidatorsRequest_Epoch{Epoch: epoch}}
 	if epoch == 0 {
 		validatorsRequest.QueryFilter = &ethpb.ListValidatorsRequest_Genesis{Genesis: true}
@@ -248,7 +256,7 @@ func (pc *PrysmClient) GetEpochAssignments(epoch uint64) (*types.EpochAssignment
 }
 
 // GetEpochData will get the epoch data from a Prysm client
-func (pc *PrysmClient) GetEpochData(epoch uint64) (*types.EpochData, error) {
+func (pc *PrysmClient) GetEpochData(epoch uint64, accounts types.Accounts) (*types.EpochData, error) {
 	var err error
 
 	data := &types.EpochData{}
@@ -258,8 +266,14 @@ func (pc *PrysmClient) GetEpochData(epoch uint64) (*types.EpochData, error) {
 
 	// Retrieve the validator balances for the epoch (NOTE: Currently the API call is broken and allows only to retrieve the balances for the current epoch
 	validatorBalancesByPubkey := make(map[string]uint64)
-	decoded, err := hex.DecodeString("b568d7f5f54fbb74443252e24ea5573fda3ae91af685268239b2c071fb55f9d5e8bc82e25c446468499e765ea6d82aed")
-	var pubeys = [][]byte{decoded}
+
+	pubeys := make([][]byte, len(accounts))
+	for i, account := range accounts {
+		decoded, err := hex.DecodeString(strings.ReplaceAll(account.PublicKey, "0x", ""))
+		if err == nil{
+			pubeys[i] = []byte(decoded)
+		}
+	}
 
 	validatorBalancesResponse := &ethpb.ValidatorBalances{}
 	validatorBalancesRequest := &ethpb.ListValidatorBalancesRequest{PublicKeys: pubeys, PageSize: utils.Config.Indexer.Node.PageSize, PageToken: validatorBalancesResponse.NextPageToken, QueryFilter: &ethpb.ListValidatorBalancesRequest_Epoch{Epoch: epoch}}
@@ -288,7 +302,7 @@ func (pc *PrysmClient) GetEpochData(epoch uint64) (*types.EpochData, error) {
 	}
 	logger.Printf("retrieved data for %v validator balances for epoch %v", len(validatorBalancesByPubkey), epoch)
 
-	data.ValidatorAssignmentes, err = pc.GetEpochAssignments(epoch)
+	data.ValidatorAssignmentes, err = pc.GetEpochAssignments(epoch, accounts)
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving assignments for epoch %v: %v", epoch, err)
 	}
@@ -298,7 +312,7 @@ func (pc *PrysmClient) GetEpochData(epoch uint64) (*types.EpochData, error) {
 	data.Blocks = make(map[uint64]map[string]*types.Block)
 
 	for slot := epoch * utils.Config.Chain.SlotsPerEpoch; slot <= (epoch+1)*utils.Config.Chain.SlotsPerEpoch-1; slot++ {
-		blocks, err := pc.GetBlocksBySlot(slot)
+		blocks, err := pc.GetBlocksBySlot(slot, accounts)
 
 		if err != nil {
 			return nil, err
@@ -428,7 +442,7 @@ func (pc *PrysmClient) GetEpochData(epoch uint64) (*types.EpochData, error) {
 }
 
 // GetBlocksBySlot will get blocks by slot from a Prysm client
-func (pc *PrysmClient) GetBlocksBySlot(slot uint64) ([]*types.Block, error) {
+func (pc *PrysmClient) GetBlocksBySlot(slot uint64, accounts types.Accounts) ([]*types.Block, error) {
 	logger.Infof("Retrieving block at slot %v", slot)
 
 	blocks := make([]*types.Block, 0)
@@ -558,7 +572,7 @@ func (pc *PrysmClient) GetBlocksBySlot(slot uint64) ([]*types.Block, error) {
 			}
 
 			aggregationBits := bitfield.Bitlist(a.AggregationBits)
-			assignments, err := pc.GetEpochAssignments(a.Data.Slot / utils.Config.Chain.SlotsPerEpoch)
+			assignments, err := pc.GetEpochAssignments(a.Data.Slot/utils.Config.Chain.SlotsPerEpoch, accounts)
 			if err != nil {
 				return nil, fmt.Errorf("error receiving epoch assignment for epoch %v: %v", a.Data.Slot/utils.Config.Chain.SlotsPerEpoch, err)
 			}
@@ -572,7 +586,7 @@ func (pc *PrysmClient) GetBlocksBySlot(slot uint64) ([]*types.Block, error) {
 						//logger.Errorf("error retrieving assigned validator for attestation %v of block %v for slot %v committee index %v member index %v", i, b.Slot, a.Data.Slot, a.Data.CommitteeIndex, i)
 						continue
 					}
-					logger.Errorf("retrieving assigned validator for attestation %v of block %v for slot %v committee index %v member index %v", i, b.Slot, a.Data.Slot, a.Data.CommitteeIndex, i)
+					//logger.Errorf("retrieving assigned validator for attestation %v of block %v for slot %v committee index %v member index %v", i, b.Slot, a.Data.Slot, a.Data.CommitteeIndex, i)
 					a.Attesters = append(a.Attesters, validator)
 				}
 			}
