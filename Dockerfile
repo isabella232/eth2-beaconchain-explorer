@@ -10,7 +10,6 @@ FROM alpine
 WORKDIR /app
 RUN apk --no-cache add libstdc++ libgcc
 COPY --from=build-env /src/bin /app/
-#COPY ./config.yml /app/config.yml
 
 COPY ./entrypoint.sh /entrypoint
 RUN sed -i 's/\r$//g' /entrypoint
