@@ -33,6 +33,7 @@ type Config struct {
 		} `yaml:"node"`
 		ValidatorCenter                        struct {
 			BaseUrl     string `yaml:"baseUrl" envconfig:"INDEXER_VALIDATOR_CENTER_BASE_URL"`
+			Network     string `yaml:"network" envconfig:"INDEXER_VALIDATOR_CENTER_NETWORK"`
 		} `yaml:"validatorCenter"`
 		Eth1Endpoint                  string `yaml:"eth1Endpoint" envconfig:"INDEXER_ETH1_ENDPOINT"`
 		Eth1DepositContractAddress    string `yaml:"eth1DepositContractAddress" envconfig:"INDEXER_ETH1_DEPOSIT_CONTRACT_ADDRESS"`

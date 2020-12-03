@@ -3,6 +3,7 @@ package http
 import (
 	"encoding/json"
 	"eth2-exporter/types"
+	"eth2-exporter/utils"
 	"fmt"
 	"net/http"
 	"time"
@@ -35,7 +36,8 @@ func NewVCClient(baseUrl string) (*VCClient, error) {
 //}
 
 func (c VCClient) GetAccounts() (types.Accounts, error) {
-	resp, err := c.client.Get(fmt.Sprintf("%s/accounts?orgId=237", c.baseUrl))  // TODO remove orgid!!
+	network := utils.Config.Indexer.ValidatorCenter.Network
+	resp, err := c.client.Get(fmt.Sprintf("%s/accounts?network=%s", c.baseUrl, network))
 	if err != nil {
 		return types.Accounts{}, err
 	}
