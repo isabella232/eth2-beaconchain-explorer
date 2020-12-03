@@ -281,6 +281,9 @@ func (pc *PrysmClient) GetEpochData(epoch uint64, accounts types.Accounts) (*typ
 		validatorBalancesRequest.QueryFilter = &ethpb.ListValidatorBalancesRequest_Genesis{Genesis: true}
 	}
 	for {
+		if len(pubeys) == 0{
+			break
+		}
 		validatorBalancesRequest.PageToken = validatorBalancesResponse.NextPageToken
 		validatorBalancesResponse, err = pc.client.ListValidatorBalances(context.Background(), validatorBalancesRequest)
 		if err != nil {
