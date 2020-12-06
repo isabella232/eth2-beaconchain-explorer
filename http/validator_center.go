@@ -37,7 +37,7 @@ func NewVCClient(baseUrl string) (*VCClient, error) {
 
 func (c VCClient) GetAccounts() (types.Accounts, error) {
 	network := utils.Config.Indexer.ValidatorCenter.Network
-	resp, err := c.client.Get(fmt.Sprintf("%s/accounts?network=%s", c.baseUrl, network))
+	resp, err := c.client.Get(fmt.Sprintf("%s/accounts?network=%s&status=active", c.baseUrl, network))
 	if err != nil {
 		return types.Accounts{}, err
 	}
