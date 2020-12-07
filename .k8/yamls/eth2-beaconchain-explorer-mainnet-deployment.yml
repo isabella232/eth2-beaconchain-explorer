@@ -84,7 +84,7 @@ spec:
           valueFrom:
             secretKeyRef:
               name: config-secrets
-              key: beaconcha_db_user
+              key: beaconcha_mainnet_db_user
 
         - name: DATABASE_NAME
           valueFrom:
