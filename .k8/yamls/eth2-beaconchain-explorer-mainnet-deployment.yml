@@ -1,0 +1,115 @@
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: eth2-beaconchain-explorer-mainnet
+  namespace: REPLACE_NAMESPACE
+spec:
+  hosts:
+  - "mainnet-bloxcha.REPLACE_DOMAIN_SUFFIX"
+  gateways:
+  - eth2-beaconchain-explorer-mainnet
+  http:
+  - route:
+    - destination:
+        host: eth2-beaconchain-explorer-mainnet-svc
+        port:
+          number: 3333
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: eth2-beaconchain-explorer-mainnet
+  namespace: REPLACE_NAMESPACE
+spec:
+  selector:
+    istio: ingressgateway-int
+  servers:
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - "mainnet-bloxcha.REPLACE_DOMAIN_SUFFIX"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: eth2-beaconchain-explorer-mainnet-svc
+  namespace: REPLACE_NAMESPACE
+  labels:
+    app: eth2-beaconchain-explorer-mainnet
+spec:
+  type: ClusterIP
+  ports:
+    - port: 3333
+      protocol: TCP
+      targetPort: 3333
+      name: port-3333
+  selector:
+    app: eth2-beaconchain-explorer-mainnet
+---
+apiVersion: REPLACE_API_VERSION 
+kind: Deployment
+metadata:
+  labels:
+    app: eth2-beaconchain-explorer-mainnet
+  name: eth2-beaconchain-explorer-mainnet
+  namespace: REPLACE_NAMESPACE
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: eth2-beaconchain-explorer-mainnet
+  template:
+    metadata:
+      labels:
+        app: eth2-beaconchain-explorer-mainnet
+    spec:
+      containers:
+      - name: eth2-beaconchain-explorer-mainnet
+        image: REPLACE_DOCKER_REPO:REPLACE_IMAGETAG 
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 3333
+          name: port-3333
+        volumeMounts:
+        - name: eth2-beaconchain-explorer-mainnet-cm
+          mountPath: /app/config.yml
+          subPath: config.yml
+        env:
+        - name: DATABASE_USER
+          valueFrom:
+            secretKeyRef:
+              name: config-secrets
+              key: beaconcha_db_user
+
+        - name: DATABASE_NAME
+          valueFrom:
+            secretKeyRef:
+              name: config-secrets
+              key: beaconcha__mainnet_db_name
+
+        - name: DATABASE_HOST
+          valueFrom:
+            secretKeyRef:
+              name: config-secrets
+              key: beaconcha_mainnet_db_host
+
+        - name: DATABASE_PORT
+          valueFrom:
+            secretKeyRef:
+              name: config-secrets
+              key: beaconcha_mainnet_db_port
+
+        - name: DATABASE_PASS
+          valueFrom:
+            secretKeyRef:
+              name: config-secrets
+              key: beaconcha_mainnet_db_pass
+      volumes:
+      - name: eth2-beaconchain-explorer-mainnet-cm
+        configMap:
+          name: eth2-beaconchain-explorer-mainnet-cm
