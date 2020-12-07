@@ -6,7 +6,7 @@ metadata:
   namespace: REPLACE_NAMESPACE
 spec:
   hosts:
-  - "bloxcha.REPLACE_DOMAIN_SUFFIX"
+  - "pyrmont-bloxcha.REPLACE_DOMAIN_SUFFIX"
   gateways:
   - eth2-beaconchain-explorer
   http:
@@ -30,7 +30,7 @@ spec:
       name: http
       protocol: HTTP
     hosts:
-    - "bloxcha.REPLACE_DOMAIN_SUFFIX"
+    - "pyrmont-bloxcha.REPLACE_DOMAIN_SUFFIX"
 ---
 apiVersion: v1
 kind: Service
