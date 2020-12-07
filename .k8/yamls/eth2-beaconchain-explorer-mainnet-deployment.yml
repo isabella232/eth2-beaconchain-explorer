@@ -90,7 +90,7 @@ spec:
           valueFrom:
             secretKeyRef:
               name: config-secrets
-              key: beaconcha__mainnet_db_name
+              key: beaconcha_mainnet_db_name
 
         - name: DATABASE_HOST
           valueFrom:
