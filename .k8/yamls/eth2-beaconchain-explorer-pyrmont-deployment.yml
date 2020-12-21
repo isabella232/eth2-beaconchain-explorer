@@ -12,7 +12,7 @@ spec:
   http:
   - route:
     - destination:
-        host: eth2-beaconchain-explorer-svc
+        host: eth2-beaconchain-explorer-pyrmont-svc
         port:
           number: 3333
 ---
@@ -35,10 +35,10 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: eth2-beaconchain-explorer-svc
+  name: eth2-beaconchain-explorer-pyrmont-svc
   namespace: REPLACE_NAMESPACE
   labels:
-    app: eth2-beaconchain-explorer
+    app: eth2-beaconchain-explorer-pyrmont
 spec:
   type: ClusterIP
   ports:
@@ -47,14 +47,14 @@ spec:
       targetPort: 3333
       name: port-3333
   selector:
-    app: eth2-beaconchain-explorer
+    app: eth2-beaconchain-explorer-pyrmont
 ---
 apiVersion: REPLACE_API_VERSION 
 kind: Deployment
 metadata:
   labels:
-    app: eth2-beaconchain-explorer
-  name: eth2-beaconchain-explorer
+    app: eth2-beaconchain-explorer-pyrmont
+  name: eth2-beaconchain-explorer-pyrmont
   namespace: REPLACE_NAMESPACE
 spec:
   replicas: 1
@@ -62,54 +62,24 @@ spec:
     type: Recreate
   selector:
     matchLabels:
-      app: eth2-beaconchain-explorer
+      app: eth2-beaconchain-explorer-pyrmont
   template:
     metadata:
       labels:
-        app: eth2-beaconchain-explorer
+        app: eth2-beaconchain-explorer-pyrmont
     spec:
       containers:
-      - name: eth2-beaconchain-explorer
+      - name: eth2-beaconchain-explorer-pyrmont
         image: REPLACE_DOCKER_REPO:REPLACE_IMAGETAG 
         imagePullPolicy: Always
         ports:
         - containerPort: 3333
           name: port-3333
         volumeMounts:
-        - name: eth2-beaconchain-explorer-cm
+        - name: eth2-beaconchain-explorer-pyrmont-secret
           mountPath: /app/config.yml
           subPath: config.yml
-        env:
-        - name: DATABASE_USER
-          valueFrom:
-            secretKeyRef:
-              name: config-secrets
-              key: beaconcha_db_user
-
-        - name: DATABASE_NAME
-          valueFrom:
-            secretKeyRef:
-              name: config-secrets
-              key: beaconcha_db_name
-
-        - name: DATABASE_HOST
-          valueFrom:
-            secretKeyRef:
-              name: config-secrets
-              key: beaconcha_db_host
-
-        - name: DATABASE_PORT
-          valueFrom:
-            secretKeyRef:
-              name: config-secrets
-              key: beaconcha_db_port
-
-        - name: DATABASE_PASS
-          valueFrom:
-            secretKeyRef:
-              name: config-secrets
-              key: beaconcha_db_pass
       volumes:
-      - name: eth2-beaconchain-explorer-cm
-        configMap:
-          name: eth2-beaconchain-explorer-cm
+      - name: eth2-beaconchain-explorer-pyrmont-secret
+        secret:
+          secretName: eth2-beaconchain-explorer-pyrmont-secret
