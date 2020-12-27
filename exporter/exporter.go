@@ -62,6 +62,7 @@ func Start(client rpc.Client, httpClient httpRest.Client) error {
 		}
 
 		if len(epochs) > 0 && epochs[0] != 0 {
+			logger.Printf("IndexMissingEpochsOnStartup - first epoch %v", epochs[0])
 			err := ExportEpoch(0, types.Accounts{}, client)
 			if err != nil {
 				logger.Error(err)
