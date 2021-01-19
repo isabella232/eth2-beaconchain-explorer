@@ -2,8 +2,12 @@ package utils
 
 import (
 	securerand "crypto/rand"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
+	"eth2-exporter/price"
 	"eth2-exporter/types"
 	"fmt"
 	"html/template"
@@ -12,13 +16,16 @@ import (
 	"math"
 	"math/big"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
 	"unicode/utf8"
 
+	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
 	"gopkg.in/yaml.v2"
@@ -68,6 +75,8 @@ func GetTemplateFuncs() template.FuncMap {
 		"formatValidatorInt64":                    FormatValidatorInt64,
 		"formatValidatorStatus":                   FormatValidatorStatus,
 		"formatPercentage":                        FormatPercentage,
+		"formatPercentageWithPrecision":           FormatPercentageWithPrecision,
+		"formatPercentageWithGPrecision":          FormatPercentageWithGPrecision,
 		"formatPublicKey":                         FormatPublicKey,
 		"formatSlashedValidator":                  FormatSlashedValidator,
 		"formatSlashedValidatorInt64":             FormatSlashedValidatorInt64,
@@ -81,6 +90,7 @@ func GetTemplateFuncs() template.FuncMap {
 		"mod":                                     func(i, j int) bool { return i%j == 0 },
 		"sub":                                     func(i, j int) int { return i - j },
 		"add":                                     func(i, j int) int { return i + j },
+		"addI64":                                  func(i, j int64) int64 { return i + j },
 		"div":                                     func(i, j float64) float64 { return i / j },
 		"gtf":                                     func(i, j float64) bool { return i > j },
 		"round": func(i float64, n int) float64 {
@@ -91,7 +101,9 @@ func GetTemplateFuncs() template.FuncMap {
 			p := message.NewPrinter(language.English)
 			return p.Sprintf("%.0f\n", i)
 		},
-		"trLang": TrLang,
+		"derefString":      DerefString,
+		"trLang":           TrLang,
+		"firstCharToUpper": func(s string) string { return strings.Title(s) },
 	}
 }
 
@@ -140,6 +152,11 @@ func TimeToSlot(timestamp uint64) uint64 {
 // EpochToTime will return a time.Time for an epoch
 func EpochToTime(epoch uint64) time.Time {
 	return time.Unix(int64(Config.Chain.GenesisTimestamp+epoch*Config.Chain.SecondsPerSlot*Config.Chain.SlotsPerEpoch), 0)
+}
+
+// EpochToTime will return a time.Time for an epoch
+func DayToTime(day uint64) time.Time {
+	return time.Unix(int64(Config.Chain.GenesisTimestamp+(day*((60*60*24)/(Config.Chain.SecondsPerSlot*Config.Chain.SlotsPerEpoch)))*Config.Chain.SecondsPerSlot*Config.Chain.SlotsPerEpoch), 0).Add(time.Hour * 24).Add(time.Second * -14)
 }
 
 // TimeToEpoch will return an epoch for a given time
@@ -198,7 +215,7 @@ func MustParseHex(hexString string) []byte {
 
 func CORSMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Headers:", "*")
+		w.Header().Set("Access-Control-Allow-Headers", "*, Authorization")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "*")
 		if r.Method == "OPTIONS" {
@@ -235,6 +252,12 @@ func IsValidEmail(s string) bool {
 func RoundDecimals(f float64, n int) float64 {
 	d := math.Pow10(n)
 	return math.Round(f*d) / d
+}
+
+// HashAndEncode digests the input with sha256 and returns it as hex string
+func HashAndEncode(input string) string {
+	codeHashedBytes := sha256.Sum256([]byte(input))
+	return hex.EncodeToString(codeHashedBytes[:])
 }
 
 const charset = "abcdefghijklmnopqrstuvwxyz0123456789"
@@ -359,4 +382,66 @@ func SqlRowsToJSON(rows *sql.Rows) ([]interface{}, error) {
 	}
 
 	return finalRows, nil
+}
+
+// GenerateAPIKey generates an API key for a user
+func GenerateAPIKey(passwordHash, email, Ts string) (string, error) {
+	apiKey, err := bcrypt.GenerateFromPassword([]byte(passwordHash+email+Ts), 10)
+	if err != nil {
+		return "", err
+	}
+	key := apiKey[:15]
+	apiKeyBase64 := base64.StdEncoding.EncodeToString(key)
+	return apiKeyBase64, nil
+}
+
+func ExchangeRateForCurrency(currency string) float64 {
+	return price.GetEthPrice(currency)
+}
+
+func Glob(dir string, ext string) ([]string, error) {
+	files := []string{}
+	err := filepath.Walk(dir, func(path string, f os.FileInfo, err error) error {
+		if filepath.Ext(path) == ext {
+			files = append(files, path)
+		}
+		return nil
+	})
+
+	return files, err
+}
+
+// ValidateReCAPTCHA validates a ReCaptcha server side
+func ValidateReCAPTCHA(recaptchaResponse string) (bool, error) {
+	// Check this URL verification details from Google
+	// https://developers.google.com/recaptcha/docs/verify
+	req, err := http.PostForm("https://www.google.com/recaptcha/api/siteverify", url.Values{
+		"secret":   {Config.Frontend.RecaptchaSecretKey},
+		"response": {recaptchaResponse},
+	})
+	if err != nil { // Handle error from HTTP POST to Google reCAPTCHA verify server
+		return false, err
+	}
+	defer req.Body.Close()
+	body, err := ioutil.ReadAll(req.Body) // Read the response from Google
+	if err != nil {
+		return false, err
+	}
+
+	var googleResponse types.GoogleRecaptchaResponse
+	err = json.Unmarshal(body, &googleResponse) // Parse the JSON response from Google
+	if err != nil {
+		return false, err
+	}
+	if len(googleResponse.ErrorCodes) > 0 {
+		err = fmt.Errorf("Error validating ReCaptcha %v", googleResponse.ErrorCodes)
+	} else {
+		err = nil
+	}
+
+	if googleResponse.Score > 0.5 {
+		return true, err
+	}
+
+	return false, fmt.Errorf("Score too low threshold not reached, Score: %v - Required >0.5; %v", googleResponse.Score, err)
 }

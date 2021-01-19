@@ -1,6 +1,7 @@
 package types
 
 import (
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -10,8 +11,9 @@ type EventName string
 
 const (
 	ValidatorBalanceDecreasedEventName              EventName = "validator_balance_decreased"
-	ValidatorMissedProposalEventName                EventName = "validator_missed_proposal"
-	ValidatorMissedAttestationEventName             EventName = "validator_missed_attestation"
+	ValidatorMissedProposalEventName                EventName = "validator_proposal_missed"
+	ValidatorExecutedProposalEventName              EventName = "validator_proposal_submitted"
+	ValidatorMissedAttestationEventName             EventName = "validator_attestation_missed"
 	ValidatorGotSlashedEventName                    EventName = "validator_got_slashed"
 	ValidatorDidSlashEventName                      EventName = "validator_did_slash"
 	ValidatorStateChangedEventName                  EventName = "validator_state_changed"
@@ -26,6 +28,7 @@ const (
 
 var EventNames = []EventName{
 	ValidatorBalanceDecreasedEventName,
+	ValidatorExecutedProposalEventName,
 	ValidatorMissedProposalEventName,
 	ValidatorMissedAttestationEventName,
 	ValidatorGotSlashedEventName,
@@ -38,6 +41,10 @@ var EventNames = []EventName{
 	NetworkValidatorExitQueueFullEventName,
 	NetworkValidatorExitQueueNotFullEventName,
 	NetworkLivenessIncreasedEventName,
+}
+
+func GetDisplayableEventName(event EventName) string {
+	return strings.Title(strings.ReplaceAll(string(event), "_", " "))
 }
 
 func EventNameFromString(event string) (EventName, error) {
@@ -59,7 +66,8 @@ type Notification interface {
 	GetSubscriptionID() uint64
 	GetEventName() EventName
 	GetEpoch() uint64
-	GetInfo() string
+	GetInfo(includeUrl bool) string
+	GetTitle() string
 }
 
 type Subscription struct {
@@ -80,10 +88,24 @@ type TaggedValidators struct {
 	Events []EventName `db:"events"`
 }
 
+type MinimalTaggedValidators struct {
+	PubKey string
+	Index  uint64
+}
+
 type OAuthAppData struct {
 	ID          uint64 `db:"id"`
 	Owner       uint64 `db:"owner_id"`
 	AppName     string `db:"app_name"`
 	RedirectURI string `db:"redirect_uri"`
 	Active      bool   `db:"active"`
+}
+
+type OAuthCodeData struct {
+	AppID  uint64 `db:"app_id"`
+	UserID uint64 `db:"user_id"`
+}
+
+type MobileSettingsData struct {
+	NotifyToken string `json:"notify_token"`
 }

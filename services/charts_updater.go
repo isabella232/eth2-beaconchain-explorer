@@ -24,7 +24,7 @@ var ChartHandlers = map[string]chartHandler{
 	"average_balance":    {4, averageBalanceChartData},
 	"network_liveness":   {5, networkLivenessChartData},
 	"participation_rate": {6, participationRateChartData},
-	"inclusion_distance": {7, inclusionDistanceChartData},
+	// "inclusion_distance":             {7, inclusionDistanceChartData},
 	// "incorrect_attestations":         {6, incorrectAttestationsChartData},
 	// "validator_income":               {7, averageDailyValidatorIncomeChartData},
 	// "staking_rewards":                {8, stakingRewardsChartData},
@@ -170,24 +170,50 @@ func blocksChartData() (*types.GenericChartData, error) {
 	}
 
 	chartData := &types.GenericChartData{
-		Title:        "Blocks",
-		Subtitle:     "History of daily blocks proposed.",
-		XAxisTitle:   "",
-		YAxisTitle:   "# of Blocks",
-		StackingMode: "normal",
-		Type:         "column",
+		Title:                "Blocks",
+		Subtitle:             "History of daily blocks proposed.",
+		XAxisTitle:           "",
+		YAxisTitle:           "% of Blocks",
+		Type:                 "column",
+		StackingMode:         "percent",
+		DataLabelsEnabled:    true,
+		DataLabelsFormatter:  `function(){ return this.point.percentage.toFixed(2)+'%' }`,
+		TooltipShared:        true,
+		TooltipUseHTML:       true,
+		TooltipFollowPointer: true,
+		TooltipFormatter: `function(tooltip){
+	let header = '<div style="font-weight:bold; text-align:center;">' + Highcharts.dateFormat("%Y-%m-%d %H:%M", this.x) + '</div><table>'
+	this.points.sort((a, b) => b.y - a.y)
+	let total = 0
+	return this.points.reduce(function (s, point) {
+		total += point.y
+		return s +
+			'<tr><td>' +
+			'<span style="color:' + point.series.color + ';">\u25CF </span>' +
+			'<span style="font-weight:bold;">' + point.series.name + ':</span></td><td>' +
+			point.percentage.toFixed(2)+'% ('+point.y+' blocks)'
+			'</td></tr>'
+	}, header) + 
+	'<tr><td>' + 
+	'<span>\u25CF </span><span style="font-weight:bold;">Total:</span></td><td>' + total + ' blocks'
+	'</td></tr>' +
+	'</table>'
+}`,
 		Series: []*types.GenericChartDataSeries{
 			{
-				Name: "Proposed",
-				Data: dailyProposedBlocks,
+				Name:  "Proposed",
+				Color: "#90ed7d",
+				Data:  dailyProposedBlocks,
 			},
 			{
-				Name: "Missed",
-				Data: dailyMissedBlocks,
+				Name:  "Missed",
+				Color: "#f7a35c",
+				Data:  dailyMissedBlocks,
 			},
 			{
-				Name: "Orphaned",
-				Data: dailyOrphanedBlocks,
+				Name:  "Orphaned",
+				Color: "#adadad",
+				Data:  dailyOrphanedBlocks,
 			},
 		},
 	}
@@ -433,9 +459,9 @@ func inclusionDistanceChartData() (*types.GenericChartData, error) {
 
 	err := db.DB.Select(&rows, `
 		select a.epoch, avg(a.inclusionslot - a.attesterslot) as inclusiondistance
-		from attestation_assignments a
+		from attestation_assignments_p a
 		inner join blocks b on b.slot = a.attesterslot and b.status = '1'
-		where a.epoch > $1 and a.inclusionslot > 0
+		where a.week >= $1 / 1575 a.epoch > $1 and a.inclusionslot > 0
 		group by a.epoch
 		order by a.epoch asc`, epochOffset)
 	if err != nil {
@@ -488,9 +514,9 @@ func votingDistributionChartData() (*types.GenericChartData, error) {
 
 	err := db.DB.Select(&rows, `
 		select a.epoch, avg(a.inclusionslot - a.attesterslot) as inclusiondistance
-		from attestation_assignments a
+		from attestation_assignments_p a
 		inner join blocks b on b.slot = a.attesterslot and b.status = '1'
-		where a.inclusionslot > 0 and a.epoch > $1
+		where a.inclusionslot > 0 and a.epoch > $1and a.week >= $1 / 1575
 		group by a.epoch
 		order by a.epoch asc`, epochOffset)
 	if err != nil {
@@ -542,9 +568,10 @@ func averageDailyValidatorIncomeChartData() (*types.GenericChartData, error) {
 					vb.epoch,
 					sum(coalesce(vb.balance,32e9)) over (order by v.activationepoch asc) as amount
 				from validators v
-					left join validator_balances vb
+					left join validator_balances_p vb
 						on vb.validatorindex = v.validatorindex
 						and vb.epoch = v.activationepoch
+						and vb.week = v.activationepoch / 1575
 				order by vb.epoch
 			),
 			extradeposits as (
@@ -637,9 +664,10 @@ func stakingRewardsChartData() (*types.GenericChartData, error) {
 					vb.epoch,
 					sum(coalesce(vb.balance,32e9)) over (order by v.activationepoch asc) as amount
 				from validators v
-					left join validator_balances vb
+					left join validator_balances_p vb
 						on vb.validatorindex = v.validatorindex
 						and vb.epoch = v.activationepoch
+						and vb.week = v.activationepoch / 1575
 				order by vb.epoch
 			),
 			extradeposits as (
@@ -894,7 +922,7 @@ func balanceDistributionChartData() (*types.GenericChartData, error) {
 	defer tx.Rollback()
 
 	var currentEpoch uint64
-	err = tx.Get(&currentEpoch, "select max(epoch) from validator_balances")
+	err = tx.Get(&currentEpoch, "select max(epoch) from epochs")
 	if err != nil {
 		return nil, err
 	}
@@ -910,11 +938,11 @@ func balanceDistributionChartData() (*types.GenericChartData, error) {
 				select 
 					min(balance) as min,
 					max(balance) as max
-				from validator_balances where epoch = (select max(epoch) as maxepoch from validator_balances) 
+				from validators 
 			),
 			balances as (
 				select balance
-				from validator_balances where epoch = (select max(epoch) as maxepoch from validator_balances)
+				from validators
 			),
 			histogram as (
 				select 
@@ -977,7 +1005,7 @@ func effectiveBalanceDistributionChartData() (*types.GenericChartData, error) {
 	defer tx.Rollback()
 
 	var currentEpoch uint64
-	err = tx.Get(&currentEpoch, "select max(epoch) from validator_balances")
+	err = tx.Get(&currentEpoch, "select max(epoch) from epochs")
 	if err != nil {
 		return nil, err
 	}
@@ -993,11 +1021,11 @@ func effectiveBalanceDistributionChartData() (*types.GenericChartData, error) {
 				select 
 					min(effectivebalance) as min,
 					max(effectivebalance) as max
-				from validator_balances where epoch = (select max(epoch) as maxepoch from validator_balances) 
+				from validators
 			),
 			balances as (
 				select effectivebalance
-				from validator_balances where epoch = (select max(epoch) as maxepoch from validator_balances)
+				from validators
 			),
 			histogram as (
 				select 
@@ -1458,8 +1486,8 @@ func depositsDistributionChartData() (*types.GenericChartData, error) {
 	chartData := &types.GenericChartData{
 		IsNormalChart:    true,
 		Type:             "pie",
-		Title:            "Deposits Distribution",
-		Subtitle:         "Deposits Distribution by ETH1-Addresses.",
+		Title:            "Eth1 Deposit Addresses",
+		Subtitle:         "Validator distribution by Eth1 deposit address.",
 		TooltipFormatter: `function(){ return '<b>'+this.point.name+'</b><br\>Percentage: '+this.point.percentage.toFixed(2)+'%<br\>Validators: '+this.point.y }`,
 		PlotOptionsPie: `{
 			borderWidth: 1,
