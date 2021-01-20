@@ -60,6 +60,7 @@ func Start(client rpc.Client, httpClient httpRest.Client, accounts types.Account
 		// Add any missing epoch to the export set (might happen if the indexer was stopped for a long period of time)
 		epochs, err := db.GetAllEpochs()
 		if err != nil {
+			logger.Errorf("TEST error: %v", err)
 			logger.Fatal(err)
 		}
 
