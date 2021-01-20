@@ -47,20 +47,20 @@ func Start(client rpc.Client, httpClient httpRest.Client, accounts types.Account
 		}
 
 		for epoch := uint64(1); epoch <= head.HeadEpoch; epoch++ {
+			logger.Printf("fullIndexOnStartup - exporting epoch ", epoch)
 			err := ExportEpoch(epoch, accounts, client)
 
 			if err != nil {
 				logger.Error(err)
 			}
+			logger.Printf("fullIndexOnStartup - DONE exporting epoch ", epoch)
 		}
 	}
 
-	logger.Printf("TEST ------ IndexMissingEpochsOnStartup = %v", utils.Config.Indexer.IndexMissingEpochsOnStartup)
 	if utils.Config.Indexer.IndexMissingEpochsOnStartup {
 		// Add any missing epoch to the export set (might happen if the indexer was stopped for a long period of time)
 		epochs, err := db.GetAllEpochs()
 		if err != nil {
-			logger.Errorf("TEST error: %v", err)
 			logger.Fatal(err)
 		}
 
