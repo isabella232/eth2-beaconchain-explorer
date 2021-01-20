@@ -138,7 +138,7 @@ func main() {
 			return
 		}
 
-		go exporter.Start(rpcClient, httpClient)
+		go exporter.Start(rpcClient, httpClient, accounts)
 	}
 
 	if cfg.Frontend.Enabled {
