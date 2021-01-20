@@ -23,7 +23,7 @@ var logger = logrus.New().WithField("module", "exporter")
 var epochBlacklist = make(map[uint64]uint64)
 
 // Start will start the export of data from rpc into the database
-func Start(client rpc.Client, httpClient httpRest.Client) error {
+func Start(client rpc.Client, httpClient httpRest.Client, accounts types.Accounts) error {
 	go performanceDataUpdater()
 	go networkLivenessUpdater(client)
 	go eth1DepositsExporter()
@@ -47,7 +47,7 @@ func Start(client rpc.Client, httpClient httpRest.Client) error {
 		}
 
 		for epoch := uint64(1); epoch <= head.HeadEpoch; epoch++ {
-			err := ExportEpoch(epoch, types.Accounts{}, client)
+			err := ExportEpoch(epoch, accounts, client)
 
 			if err != nil {
 				logger.Error(err)
@@ -62,9 +62,9 @@ func Start(client rpc.Client, httpClient httpRest.Client) error {
 			logger.Fatal(err)
 		}
 
-		if len(epochs) > 0 && epochs[0] != 0 {
+		if len(epochs) > 0 && epochs[0] != 0 { // export epoch 0 if missing
 			logger.Printf("IndexMissingEpochsOnStartup - first epoch %v", epochs[0])
-			err := ExportEpoch(0, types.Accounts{}, client)
+			err := ExportEpoch(0, accounts, client)
 			if err != nil {
 				logger.Error(err)
 			}
@@ -77,7 +77,8 @@ func Start(client rpc.Client, httpClient httpRest.Client) error {
 				logger.Println("Epochs between", epochs[i], "and", epochs[i+1], "are missing!")
 
 				for epoch := epochs[i]; epoch <= epochs[i+1]; epoch++ {
-					err := ExportEpoch(epoch, types.Accounts{}, client)
+					logger.Println("Fetching epoch - ", epoch)
+					err := ExportEpoch(epoch, accounts, client)
 					if err != nil {
 						logger.Error(err)
 					}
@@ -231,6 +232,7 @@ func doFullCheck(client rpc.Client, httpClient httpRest.Client) {
 	}
 
 	accounts := GetValidators(httpClient)
+
 	// For the same epochs retrieve all block data from the node
 	nodeBlocks, err := GetLastBlocks(startEpoch, head.HeadEpoch, accounts, client)
 	if err != nil {
