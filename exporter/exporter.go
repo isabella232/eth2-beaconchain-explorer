@@ -55,6 +55,7 @@ func Start(client rpc.Client, httpClient httpRest.Client, accounts types.Account
 		}
 	}
 
+	logger.Printf("TEST ------ IndexMissingEpochsOnStartup = %v", utils.Config.Indexer.IndexMissingEpochsOnStartup)
 	if utils.Config.Indexer.IndexMissingEpochsOnStartup {
 		// Add any missing epoch to the export set (might happen if the indexer was stopped for a long period of time)
 		epochs, err := db.GetAllEpochs()
