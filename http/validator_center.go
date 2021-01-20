@@ -16,7 +16,7 @@ type VCClient struct {
 
 // NewVCClient is used for a new VC client connection
 func NewVCClient(baseUrl string) (*VCClient, error) {
-	timeout := 10 * time.Second
+	timeout := 60 * time.Second
 	httpClient := http.Client{
 		Timeout: timeout,
 	}

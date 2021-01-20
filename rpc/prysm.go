@@ -223,12 +223,18 @@ func (pc *PrysmClient) GetEpochAssignments(epoch uint64, accounts types.Accounts
 	validators := make(map[string]uint64)
 	validatorsResponse := &ethpb.Validators{}
 
-	pubeys := make([][]byte, len(accounts))
-	for i, account := range accounts {
-		decoded, err := hex.DecodeString(strings.ReplaceAll(account.PublicKey, "0x", ""))
-		if err == nil{
-			pubeys[i] = []byte(decoded)
+	var pubeys [][]byte
+	for _, account := range accounts {
+		if account.ActivationEpoch == 18446744073709551615 || account.ActivationEpoch > epoch { // validator is not active in this epoch
+			continue
 		}
+		decoded, err := hex.DecodeString(strings.ReplaceAll(account.PublicKey, "0x", ""))
+		if err == nil {
+			pubeys = append(pubeys, decoded)
+		}
+	}
+	if len(pubeys) == 0 {
+		return assignments, nil
 	}
 
 	validatorsRequest := &ethpb.ListValidatorsRequest{PublicKeys: pubeys, QueryFilter: &ethpb.ListValidatorsRequest_Epoch{Epoch: epoch}}
@@ -307,7 +313,7 @@ func (pc *PrysmClient) GetEpochData(epoch uint64, accounts types.Accounts) (*typ
 	pubeys := make([][]byte, len(accounts))
 	for i, account := range accounts {
 		decoded, err := hex.DecodeString(strings.ReplaceAll(account.PublicKey, "0x", ""))
-		if err == nil{
+		if err == nil {
 			pubeys[i] = []byte(decoded)
 		}
 	}
@@ -337,6 +343,7 @@ func (pc *PrysmClient) GetEpochData(epoch uint64, accounts types.Accounts) (*typ
 
 	data.ValidatorAssignmentes, err = pc.GetEpochAssignments(epoch, accounts)
 	if err != nil {
+		//fmt.Errorf("error retrieving assignments for epoch %v: %v", epoch, err)
 		return nil, fmt.Errorf("error retrieving assignments for epoch %v: %v", epoch, err)
 	}
 	logger.Printf("retrieved validator assignment data for epoch %v", epoch)
@@ -474,7 +481,7 @@ func (pc *PrysmClient) getBalancesForEpoch(epoch int64, pubeys [][]byte) (map[ui
 		validatorBalancesRequest.QueryFilter = &ethpb.ListValidatorBalancesRequest_Genesis{Genesis: true}
 	}
 	for {
-		if len(pubeys) == 0{
+		if len(pubeys) == 0 {
 			break
 		}
 		validatorBalancesRequest.PageToken = validatorBalancesResponse.NextPageToken
@@ -653,9 +660,9 @@ func (pc *PrysmClient) parseRpcBlock(block *ethpb.BeaconBlockContainer, accounts
 				if !found { // This should never happen!
 					//validator = 0
 					//logger.Errorf("error retrieving assigned validator for attestation %v of block %v for slot %v committee index %v member index %v", i, b.Slot, a.Data.Slot, a.Data.CommitteeIndex, i)
-						continue
-					}
-					//logger.Errorf("retrieving assigned validator for attestation %v of block %v for slot %v committee index %v member index %v", i, b.Slot, a.Data.Slot, a.Data.CommitteeIndex, i)
+					continue
+				}
+				//logger.Errorf("retrieving assigned validator for attestation %v of block %v for slot %v committee index %v member index %v", i, b.Slot, a.Data.Slot, a.Data.CommitteeIndex, i)
 				a.Attesters = append(a.Attesters, validator)
 			}
 		}

@@ -625,7 +625,10 @@ func SaveEpoch(data *types.EpochData) error {
 		}
 	}
 
-	validatorBalanceAverage := new(big.Int).Div(validatorBalanceSum, new(big.Int).SetInt64(int64(validatorsCount)))
+	var validatorBalanceAverage = 0
+	if validatorsCount > 0 {
+		validatorBalanceAverage = int(new(big.Int).Div(validatorBalanceSum, new(big.Int).SetInt64(int64(validatorsCount))).Uint64())
+	}
 
 	_, err = tx.Exec(`
 		INSERT INTO epochs (
@@ -667,7 +670,7 @@ func SaveEpoch(data *types.EpochData) error {
 		depositCount,
 		voluntaryExitCount,
 		validatorsCount,
-		validatorBalanceAverage.Uint64(),
+		validatorBalanceAverage,
 		validatorBalanceSum.Uint64(),
 		data.EpochParticipationStats.Finalized,
 		data.EpochParticipationStats.EligibleEther,
