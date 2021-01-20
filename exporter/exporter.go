@@ -64,30 +64,19 @@ func Start(client rpc.Client, httpClient httpRest.Client, accounts types.Account
 			logger.Fatal(err)
 		}
 
-		if len(epochs) > 0 && epochs[0] != 0 { // export epoch 0 if missing
-			logger.Printf("IndexMissingEpochsOnStartup - first epoch %v", epochs[0])
-			err := ExportEpoch(0, accounts, client)
+		head, err := client.GetChainHead()
+		if err != nil {
+			logger.Errorf("IndexMissingEpochsOnStartup - error retrieving chain head: %v", err)
+		}
+		if epochs[len(epochs) - 1] < head.HeadEpoch - 1 {
+			logger.Errorf("TEST --- db head - %v | head - %v", epochs[len(epochs) - 1], head.HeadEpoch - 1)
+			err := ExportEpoch(head.HeadEpoch - 1, accounts, client)
 			if err != nil {
 				logger.Error(err)
 			}
-			logger.Printf("finished export for epoch %v", 0)
-			epochs = append([]uint64{0}, epochs...)
 		}
 
-		for i := 0; i < len(epochs)-1; i++ {
-			if epochs[i] != epochs[i+1]-1 && epochs[i] != epochs[i+1] {
-				logger.Println("Epochs between", epochs[i], "and", epochs[i+1], "are missing!")
-
-				for epoch := epochs[i]; epoch <= epochs[i+1]; epoch++ {
-					logger.Println("Fetching epoch - ", epoch)
-					err := ExportEpoch(epoch, accounts, client)
-					if err != nil {
-						logger.Error(err)
-					}
-					logger.Printf("finished export for epoch %v", epoch)
-				}
-			}
-		}
+		go IndexMissingEpochsOnStartup(client, accounts, epochs)
 	}
 
 	if utils.Config.Indexer.CheckAllBlocksOnStartup {
@@ -202,6 +191,34 @@ func Start(client rpc.Client, httpClient httpRest.Client, accounts types.Account
 	return nil
 }
 
+func IndexMissingEpochsOnStartup(client rpc.Client, accounts types.Accounts, epochs []uint64) {
+
+	if len(epochs) > 0 && epochs[0] != 0 { // export epoch 0 if missing
+		logger.Printf("IndexMissingEpochsOnStartup - first epoch %v", epochs[0])
+		err := ExportEpoch(0, accounts, client)
+		if err != nil {
+			logger.Error(err)
+		}
+		logger.Printf("finished export for epoch %v", 0)
+		epochs = append([]uint64{0}, epochs...)
+	}
+
+	for i := 0; i < len(epochs)-1; i++ {
+		if epochs[i] != epochs[i+1]-1 && epochs[i] != epochs[i+1] {
+			logger.Println("Epochs between", epochs[i], "and", epochs[i+1], "are missing!")
+
+			for epoch := epochs[i]; epoch <= epochs[i+1]; epoch++ {
+				logger.Println("Fetching epoch - ", epoch)
+				err := ExportEpoch(epoch, accounts, client)
+				if err != nil {
+					logger.Error(err)
+				}
+				logger.Printf("finished export for epoch %v", epoch)
+			}
+		}
+	}
+}
+
 // Will ensure the db is fully in sync with the node
 func doFullCheck(client rpc.Client, httpClient httpRest.Client) {
 	logger.Infof("checking for new blocks/epochs to export")
@@ -304,7 +321,7 @@ func doFullCheck(client rpc.Client, httpClient httpRest.Client) {
 	}
 
 	// Check for epoch gaps
-	for i := 0; i < len(epochs)-1; i++ {
+/*	for i := 0; i < len(epochs)-1; i++ {
 		currentEpoch := epochs[i]
 		nextEpoch := epochs[i+1]
 
@@ -315,7 +332,7 @@ func doFullCheck(client rpc.Client, httpClient httpRest.Client) {
 				epochsToExport[j] = true
 			}
 		}
-	}
+	}*/
 
 	logger.Printf("exporting %v epochs.", len(epochsToExport))
 
