@@ -68,12 +68,18 @@ func Start(client rpc.Client, httpClient httpRest.Client, accounts types.Account
 		if err != nil {
 			logger.Errorf("IndexMissingEpochsOnStartup - error retrieving chain head: %v", err)
 		}
-		if epochs[len(epochs) - 1] < head.HeadEpoch - 1 {
-			logger.Errorf("TEST --- db head - %v | head - %v", epochs[len(epochs) - 1], head.HeadEpoch - 1)
+
+		if len(epochs) == 0 || epochs[len(epochs) - 1] < head.HeadEpoch - 1 { // export head epoch -1
+			var dbCurrentEpoch = 0
+			if len(epochs) > 0 {
+				dbCurrentEpoch = int(epochs[len(epochs)-1])
+			}
+			logger.Errorf("Head epoch is not synced. db current - %v | head - %v", dbCurrentEpoch, head.HeadEpoch - 1)
 			err := ExportEpoch(head.HeadEpoch - 1, accounts, client)
 			if err != nil {
-				logger.Error(err)
+				logger.Error("Exporting epoch v% error- v%",  head.HeadEpoch - 1, err)
 			}
+			epochs = append([]uint64{head.HeadEpoch - 1}, epochs...)
 		}
 
 		go IndexMissingEpochsOnStartup(client, accounts, epochs)
@@ -192,7 +198,6 @@ func Start(client rpc.Client, httpClient httpRest.Client, accounts types.Account
 }
 
 func IndexMissingEpochsOnStartup(client rpc.Client, accounts types.Accounts, epochs []uint64) {
-
 	if len(epochs) > 0 && epochs[0] != 0 { // export epoch 0 if missing
 		logger.Printf("IndexMissingEpochsOnStartup - first epoch %v", epochs[0])
 		err := ExportEpoch(0, accounts, client)
