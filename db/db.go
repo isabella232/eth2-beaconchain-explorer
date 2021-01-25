@@ -795,6 +795,7 @@ func saveValidators(epoch uint64, validators []*types.Validator, tx *sql.Tx) err
 				if churnLimit < 4 {
 					churnLimit = 4
 				}
+				logger.Infof("TEST ---- %v | %v | %v | %v | %v", v.Index, lastActivatedValidatorIdx, v.ActivationEligibilityEpoch, v.ActivationEpoch ,epoch)
 				if v.ActivationEligibilityEpoch > epoch {
 					v.ActivationEpoch = v.ActivationEligibilityEpoch + uint64(float64(positionInActivationQueue)/churnLimit)
 				} else {
