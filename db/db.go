@@ -558,7 +558,7 @@ func SaveBlock(block *types.Block) error {
 }
 
 // SaveEpoch will stave the epoch data into the database
-func SaveEpoch(data *types.EpochData) error {
+func SaveEpoch(data *types.EpochData, headEpoch uint64) error {
 	tx, err := DB.Begin()
 	if err != nil {
 		return fmt.Errorf("error starting db transactions: %v", err)
@@ -576,7 +576,7 @@ func SaveEpoch(data *types.EpochData) error {
 	}
 
 	logger.Infof("exporting validators data")
-	err = saveValidators(data.Epoch, data.Validators, tx)
+	err = saveValidators(headEpoch, data.Validators, tx)
 	if err != nil {
 		return fmt.Errorf("error saving validators to db: %v", err)
 	}

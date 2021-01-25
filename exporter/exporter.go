@@ -493,7 +493,8 @@ func ExportEpoch(epoch uint64, accounts types.Accounts, client rpc.Client) error
 		return fmt.Errorf("error retrieving epoch data: no validators received for epoch")
 	}
 */
-	return db.SaveEpoch(data)
+	head, err := client.GetChainHead()
+	return db.SaveEpoch(data, head.HeadEpoch)
 }
 
 func exportValidatorQueue(client rpc.Client) error {
