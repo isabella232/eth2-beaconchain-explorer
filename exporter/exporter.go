@@ -81,7 +81,7 @@ func Start(client rpc.Client, httpClient httpRest.Client, accounts types.Account
 			}
 			epochs = append([]uint64{head.HeadEpoch - 1}, epochs...)
 		}
-
+		logger.Errorf("Finished exporting head - 1 epoch (%v)", head.HeadEpoch - 1)
 		go IndexMissingEpochsOnStartup(client, httpClient, accounts, epochs)
 	}
 
