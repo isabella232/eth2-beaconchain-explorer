@@ -82,7 +82,7 @@ func Start(client rpc.Client, httpClient httpRest.Client, accounts types.Account
 			epochs = append([]uint64{head.HeadEpoch - 1}, epochs...)
 		}
 
-		go IndexMissingEpochsOnStartup(client, accounts, epochs)
+		go IndexMissingEpochsOnStartup(client, httpClient, accounts, epochs)
 	}
 
 	if utils.Config.Indexer.CheckAllBlocksOnStartup {
@@ -197,7 +197,7 @@ func Start(client rpc.Client, httpClient httpRest.Client, accounts types.Account
 	return nil
 }
 
-func IndexMissingEpochsOnStartup(client rpc.Client, accounts types.Accounts, epochs []uint64) {
+func IndexMissingEpochsOnStartup(client rpc.Client, httpClient httpRest.Client, accounts types.Accounts, epochs []uint64) {
 	if len(epochs) > 0 && epochs[0] != 0 { // export epoch 0 if missing
 		logger.Printf("IndexMissingEpochsOnStartup - first epoch %v", epochs[0])
 		err := ExportEpoch(0, accounts, client)
@@ -214,6 +214,7 @@ func IndexMissingEpochsOnStartup(client rpc.Client, accounts types.Accounts, epo
 
 			for epoch := epochs[i]; epoch <= epochs[i+1]; epoch++ {
 				logger.Println("Fetching epoch - ", epoch)
+				accounts := GetValidators(httpClient)
 				err := ExportEpoch(epoch, accounts, client)
 				if err != nil {
 					logger.Error(err)
@@ -866,12 +867,10 @@ func genesisDepositsExporter() {
 }
 
 func GetValidators(client httpRest.Client) types.Accounts {
-	logger.Infof("getting accounts...")
 	accounts, err := client.GetAccounts()
 	if err != nil{
 		logger.Errorf("error getting accounts from validator center: %v", err)
 		return types.Accounts{}
 	}
-	logger.Infof("Got %v accounts", len(accounts))
 	return accounts
 }

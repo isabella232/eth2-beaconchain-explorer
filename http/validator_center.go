@@ -36,8 +36,10 @@ func NewVCClient(baseUrl string) (*VCClient, error) {
 //}
 
 func (c VCClient) GetAccounts() (types.Accounts, error) {
+	logger.Infof("getting accounts...")
+	start := time.Now()
 	network := utils.Config.Indexer.ValidatorCenter.Network
-	resp, err := c.client.Get(fmt.Sprintf("%s/accounts?network=%s", c.baseUrl, network))
+	resp, err := c.client.Get(fmt.Sprintf("%s/accounts/cached?network=%s", c.baseUrl, network))
 	if err != nil {
 		return types.Accounts{}, err
 	}
@@ -47,5 +49,6 @@ func (c VCClient) GetAccounts() (types.Accounts, error) {
 	if err != nil {
 		return types.Accounts{}, err
 	}
+	logger.Infof("Got %v accounts in %v", len(accounts), time.Since(start))
 	return accounts, nil
 }
