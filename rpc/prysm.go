@@ -299,28 +299,34 @@ func (pc *PrysmClient) GetEpochData(epoch uint64, accounts types.Accounts) (*typ
 		}
 	}
 
-	// Retrieve the validator balances for the requested epoch
-	start := time.Now()
-	validatorBalances, err := pc.getBalancesForEpoch(int64(epoch), pubeys)
-	logger.Printf("retrieved data for %v validator balances for epoch %v took %v", len(validatorBalances), epoch, time.Since(start))
+	var validatorBalances map[uint64]uint64
+	var validatorBalances1d map[uint64]uint64
+	var validatorBalances7d map[uint64]uint64
+	var validatorBalances31d map[uint64]uint64
+	if utils.Config.Indexer.FullIndexOnStartup{
+		// Retrieve the validator balances for the requested epoch
+		start := time.Now()
+		validatorBalances, _ := pc.getBalancesForEpoch(int64(epoch), pubeys)
+		logger.Printf("retrieved data for %v validator balances for epoch %v took %v", len(validatorBalances), epoch, time.Since(start))
 
-	// Retrieve the validator balances for the n-1d epoch
-	start = time.Now()
-	epoch1d := int64(epoch) - 225
-	validatorBalances1d, err := pc.getBalancesForEpoch(epoch1d, pubeys)
-	logger.Printf("retrieved data for %v validator balances for 1d epoch %v took %v", len(validatorBalances), epoch1d, time.Since(start))
+		// Retrieve the validator balances for the n-1d epoch
+		start = time.Now()
+		epoch1d := int64(epoch) - 225
+		validatorBalances1d, _ := pc.getBalancesForEpoch(epoch1d, pubeys)
+		logger.Printf("retrieved data for %v validator balances for 1d epoch %v took %v", len(validatorBalances1d), epoch1d, time.Since(start))
 
-	// Retrieve the validator balances for the n-7d epoch
-	start = time.Now()
-	epoch7d := int64(epoch) - 225*7
-	validatorBalances7d, err := pc.getBalancesForEpoch(epoch7d, pubeys)
-	logger.Printf("retrieved data for %v validator balances for 7d epoch %v took %v", len(validatorBalances), epoch7d, time.Since(start))
+		// Retrieve the validator balances for the n-7d epoch
+		start = time.Now()
+		epoch7d := int64(epoch) - 225*7
+		validatorBalances7d, _ := pc.getBalancesForEpoch(epoch7d, pubeys)
+		logger.Printf("retrieved data for %v validator balances for 7d epoch %v took %v", len(validatorBalances7d), epoch7d, time.Since(start))
 
-	// Retrieve the validator balances for the n-7d epoch
-	start = time.Now()
-	epoch31d := int64(epoch) - 225*31
-	validatorBalances31d, err := pc.getBalancesForEpoch(epoch31d, pubeys)
-	logger.Printf("retrieved data for %v validator balances for 31d epoch %v took %v", len(validatorBalances), epoch31d, time.Since(start))
+		// Retrieve the validator balances for the n-7d epoch
+		start = time.Now()
+		epoch31d := int64(epoch) - 225*31
+		validatorBalances31d, _ := pc.getBalancesForEpoch(epoch31d, pubeys)
+		logger.Printf("retrieved data for %v validator balances for 31d epoch %v took %v", len(validatorBalances31d), epoch31d, time.Since(start))
+	}
 
 	data.ValidatorAssignmentes, err = pc.GetEpochAssignments(epoch, accounts)
 	if err != nil {
