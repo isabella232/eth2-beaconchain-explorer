@@ -229,7 +229,7 @@ func (pc *PrysmClient) GetEpochAssignments(epoch uint64, accounts types.Accounts
 
 	var pubeys [][]byte
 	for _, account := range accounts {
-		if account.ActivationEpoch == 18446744073709551615 || account.ActivationEpoch > epoch { // validator is not active in this epoch
+		if account.IsSlashed || account.Status == "exited" || account.ActivationEpoch == 18446744073709551615 || account.ActivationEpoch > epoch { // validator is not active in this epoch
 			continue
 		}
 		decoded, err := hex.DecodeString(strings.ReplaceAll(account.PublicKey, "0x", ""))
