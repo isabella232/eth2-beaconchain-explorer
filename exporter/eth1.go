@@ -96,6 +96,7 @@ func eth1DepositsExporter() {
 			fromBlock = toBlock - 100
 		}
 
+		logger.Infof("Eth1 deposits start from %v to %v", fromBlock, toBlock)
 		depositsToSave, err := fetchEth1Deposits(fromBlock, toBlock)
 		if err != nil {
 			if infuraToMuchResultsErrorRE.MatchString(err.Error()) || gethRequestEntityTooLargeRE.MatchString(err.Error()) {
