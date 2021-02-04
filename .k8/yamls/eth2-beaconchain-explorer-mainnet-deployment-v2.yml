@@ -2,24 +2,24 @@
 apiVersion: networking.istio.io/v1alpha3
 kind: VirtualService
 metadata:
-  name: eth2-beaconchain-explorer
+  name: eth2-beaconchain-explorer-mainnet-v2
   namespace: REPLACE_NAMESPACE
 spec:
   hosts:
-  - "pyrmont-bloxcha.REPLACE_DOMAIN_SUFFIX"
+  - "mainnet-bloxcha-v2.REPLACE_DOMAIN_SUFFIX"
   gateways:
-  - eth2-beaconchain-explorer
+  - eth2-beaconchain-explorer-mainnet-v2
   http:
   - route:
     - destination:
-        host: eth2-beaconchain-explorer-pyrmont-svc
+        host: eth2-beaconchain-explorer-mainnet-v2-svc
         port:
           number: 3333
 ---
 apiVersion: networking.istio.io/v1alpha3
 kind: Gateway
 metadata:
-  name: eth2-beaconchain-explorer
+  name: eth2-beaconchain-explorer-mainnet-v2
   namespace: REPLACE_NAMESPACE
 spec:
   selector:
@@ -30,15 +30,15 @@ spec:
       name: http
       protocol: HTTP
     hosts:
-    - "pyrmont-bloxcha.REPLACE_DOMAIN_SUFFIX"
+    - "mainnet-bloxcha-v2.REPLACE_DOMAIN_SUFFIX"
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: eth2-beaconchain-explorer-pyrmont-svc
+  name: eth2-beaconchain-explorer-mainnet-v2-svc
   namespace: REPLACE_NAMESPACE
   labels:
-    app: eth2-beaconchain-explorer-pyrmont
+    app: eth2-beaconchain-explorer-mainnet-v2
 spec:
   type: ClusterIP
   ports:
@@ -47,14 +47,14 @@ spec:
       targetPort: 3333
       name: port-3333
   selector:
-    app: eth2-beaconchain-explorer-pyrmont
+    app: eth2-beaconchain-explorer-mainnet-v2
 ---
 apiVersion: REPLACE_API_VERSION 
 kind: Deployment
 metadata:
   labels:
-    app: eth2-beaconchain-explorer-pyrmont
-  name: eth2-beaconchain-explorer-pyrmont
+    app: eth2-beaconchain-explorer-mainnet-v2
+  name: eth2-beaconchain-explorer-mainnet-v2
   namespace: REPLACE_NAMESPACE
 spec:
   replicas: 1
@@ -62,24 +62,24 @@ spec:
     type: Recreate
   selector:
     matchLabels:
-      app: eth2-beaconchain-explorer-pyrmont
+      app: eth2-beaconchain-explorer-mainnet-v2
   template:
     metadata:
       labels:
-        app: eth2-beaconchain-explorer-pyrmont
+        app: eth2-beaconchain-explorer-mainnet-v2
     spec:
       containers:
-      - name: eth2-beaconchain-explorer-pyrmont
+      - name: eth2-beaconchain-explorer-mainnet-v2
         image: REPLACE_DOCKER_REPO:REPLACE_IMAGETAG 
         imagePullPolicy: Always
         ports:
         - containerPort: 3333
           name: port-3333
         volumeMounts:
-        - name: eth2-beaconchain-explorer-pyrmont-secret
+        - name: eth2-beaconchain-explorer-mainnet-secret-v2
           mountPath: /app/config.yml
           subPath: config.yml
       volumes:
-      - name: eth2-beaconchain-explorer-pyrmont-secret
+      - name: eth2-beaconchain-explorer-mainnet-secret-v2
         secret:
-          secretName: eth2-beaconchain-explorer-pyrmont-secret
+          secretName: eth2-beaconchain-explorer-mainnet-secret-v2
