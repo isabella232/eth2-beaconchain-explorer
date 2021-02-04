@@ -237,7 +237,8 @@ func (pc *PrysmClient) GetEpochAssignments(epoch uint64, accounts types.Accounts
 			pubeys = append(pubeys, decoded)
 		}
 	}
-	if len(pubeys) == 0 {
+
+	if pubeys == nil || len(pubeys) == 0{
 		return assignments, nil
 	}
 
