@@ -33,7 +33,7 @@ type Config struct {
 		IndexMissingEpochsOnStartup bool `yaml:"indexMissingEpochsOnStartup" envconfig:"INDEXER_MISSING_INDEX_ON_STARTUP"`
 		CheckAllBlocksOnStartup     bool `yaml:"checkAllBlocksOnStartup" envconfig:"INDEXER_CHECK_ALL_BLOCKS_ON_STARTUP"`
 		UpdateAllEpochStatistics    bool `yaml:"updateAllEpochStatistics" envconfig:"INDEXER_UPDATE_ALL_EPOCH_STATISTICS"`
-		UpdateAllEpoch 				bool `yaml:"updateAllEpoch" envconfig:"INDEXER_UPDATE_ALL_EPOCH"`
+		FetchBalances 				bool `yaml:"fetchBalances" envconfig:"INDEXER_FETCH_BALANCES"`
 		Node                        struct {
 			Port     string `yaml:"port" envconfig:"INDEXER_NODE_PORT"`
 			Host     string `yaml:"host" envconfig:"INDEXER_NODE_HOST"`
