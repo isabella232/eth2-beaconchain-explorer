@@ -86,7 +86,7 @@ func eth1DepositsExporter() {
 		}
 		// if we are not synced to the head yet fetch missing blocks in batches of size 1000
 		if toBlock-fromBlock > eth1MaxFetch {
-			toBlock = fromBlock + 1000
+			toBlock = fromBlock + 250
 		}
 		if toBlock > blockHeight {
 			toBlock = blockHeight
@@ -96,6 +96,7 @@ func eth1DepositsExporter() {
 			fromBlock = toBlock - 100
 		}
 
+		logger.Infof("Eth1 deposits start from %v to %v", fromBlock, toBlock)
 		depositsToSave, err := fetchEth1Deposits(fromBlock, toBlock)
 		if err != nil {
 			if infuraToMuchResultsErrorRE.MatchString(err.Error()) || gethRequestEntityTooLargeRE.MatchString(err.Error()) {
