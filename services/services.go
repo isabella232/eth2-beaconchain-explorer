@@ -3,6 +3,7 @@ package services
 import (
 	"database/sql"
 	"eth2-exporter/db"
+	"eth2-exporter/price"
 	"eth2-exporter/types"
 	"eth2-exporter/utils"
 	"fmt"
@@ -46,7 +47,9 @@ func Init() {
 		return
 	}
 
-	go chartsPageDataUpdater()
+	if !utils.Config.Frontend.DisableCharts {
+		go chartsPageDataUpdater()
+	}
 	go statsUpdater()
 
 	if utils.Config.Frontend.Notifications.Enabled {
@@ -142,9 +145,10 @@ func indexPageDataUpdater() {
 }
 
 func getIndexPageData() (*types.IndexPageData, error) {
+	currency := "ETH"
+
 	data := &types.IndexPageData{}
 	data.Mainnet = utils.Config.Chain.Mainnet
-
 	data.NetworkName = utils.Config.Chain.Network
 	data.DepositContract = utils.Config.Indexer.Eth1DepositContractAddress
 
@@ -187,27 +191,12 @@ func getIndexPageData() (*types.IndexPageData, error) {
 			return nil, fmt.Errorf("error retrieving eth1 deposits: %v", err)
 		}
 
-		var threshold time.Time
-		err = db.DB.Get(&threshold, `
-		select min(block_ts) from (
-			select block_ts, block_number, sum(amount) over (order by block_ts) as totalsum
-				from (
-					SELECT
-						publickey,
-						32e9 AS amount,
-						MAX(block_ts) as block_ts,
-						MAX(block_number) as block_number
-					FROM eth1_deposits
-					WHERE valid_signature = true
-					GROUP BY publickey
-					HAVING SUM(amount) >= 32e9
-				) a
-			) b
-			where totalsum > $1;
-			 `, utils.Config.Chain.MinGenesisActiveValidatorCount*32e9)
+		threshold, err := db.GetDepositThresholdTime()
 		if err != nil {
-			// return nil, fmt.Errorf("error retrieving eth1 deposits: %v", err)
 			logger.WithError(err).Error("error could not calcualte threshold time")
+		}
+		if threshold == nil {
+			threshold = &deposit.BlockTs
 		}
 
 		data.DepositThreshold = float64(utils.Config.Chain.MinGenesisActiveValidatorCount) * 32
@@ -227,7 +216,7 @@ func getIndexPageData() (*types.IndexPageData, error) {
 		// enough deposits
 		if data.DepositedTotal > data.DepositThreshold {
 			if depositThresholdReached.Load() == nil {
-				eth1BlockDepositReached.Store(threshold)
+				eth1BlockDepositReached.Store(*threshold)
 				depositThresholdReached.Store(true)
 			}
 			eth1Block := eth1BlockDepositReached.Load().(time.Time)
@@ -272,7 +261,7 @@ func getIndexPageData() (*types.IndexPageData, error) {
 		data.Genesis = false
 	}
 	// show the transition view one hour before the first slot and until epoch 30 is reached
-	if now.Add(time.Hour*2).After(startSlotTime) && now.Before(genesisTransition) {
+	if now.Add(time.Hour*24).After(startSlotTime) && now.Before(genesisTransition) {
 		data.GenesisPeriod = true
 	} else {
 		data.GenesisPeriod = false
@@ -291,9 +280,9 @@ func getIndexPageData() (*types.IndexPageData, error) {
 	for _, epoch := range epochs {
 		epoch.Ts = utils.EpochToTime(epoch.Epoch)
 		epoch.FinalizedFormatted = utils.FormatYesNo(epoch.Finalized)
-		epoch.VotedEtherFormatted = utils.FormatBalance(epoch.VotedEther)
-		epoch.EligibleEtherFormatted = utils.FormatBalanceShort(epoch.EligibleEther)
-		epoch.GlobalParticipationRateFormatted = utils.FormatGlobalParticipationRate(epoch.VotedEther, epoch.GlobalParticipationRate)
+		epoch.VotedEtherFormatted = utils.FormatBalance(epoch.VotedEther, currency)
+		epoch.EligibleEtherFormatted = utils.FormatBalanceShort(epoch.EligibleEther, currency)
+		epoch.GlobalParticipationRateFormatted = utils.FormatGlobalParticipationRate(epoch.VotedEther, epoch.GlobalParticipationRate, currency)
 	}
 	data.Epochs = epochs
 
@@ -365,14 +354,19 @@ func getIndexPageData() (*types.IndexPageData, error) {
 	data.ExitingValidators = queueCount.ExitingValidators
 
 	var averageBalance float64
-	err = db.DB.Get(&averageBalance, "SELECT COALESCE(AVG(balance), 0) FROM validator_balances WHERE epoch = $1", epoch)
+	err = db.DB.Get(&averageBalance, "SELECT COALESCE(AVG(balance), 0) FROM validators")
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving validator balance: %v", err)
 	}
-	data.AverageBalance = string(utils.FormatBalance(uint64(averageBalance)))
+	data.AverageBalance = string(utils.FormatBalance(uint64(averageBalance), currency))
+
+	var epochLowerBound uint64
+	if epochLowerBound = 0; epoch > 1600 {
+		epochLowerBound = epoch - 1600
+	}
 
 	var epochHistory []*types.IndexPageEpochHistory
-	err = db.DB.Select(&epochHistory, "SELECT epoch, eligibleether, validatorscount, finalized FROM epochs WHERE epoch < $1 ORDER BY epoch", epoch)
+	err = db.DB.Select(&epochHistory, "SELECT epoch, eligibleether, validatorscount, finalized FROM epochs WHERE epoch < $1 and epoch > $2 ORDER BY epoch", epoch, epochLowerBound)
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving staked ether history: %v", err)
 	}
@@ -386,7 +380,7 @@ func getIndexPageData() (*types.IndexPageData, error) {
 			}
 		}
 
-		data.StakedEther = string(utils.FormatBalance(epochHistory[len(epochHistory)-1].EligibleEther))
+		data.StakedEther = string(utils.FormatBalance(epochHistory[len(epochHistory)-1].EligibleEther, currency))
 		data.ActiveValidators = epochHistory[len(epochHistory)-1].ValidatorsCount
 	}
 
@@ -441,6 +435,7 @@ func LatestState() *types.LatestState {
 	data.LastProposedSlot = atomic.LoadUint64(&latestProposedSlot)
 	data.FinalityDelay = data.CurrentEpoch - data.CurrentFinalizedEpoch
 	data.IsSyncing = IsSyncing()
+	data.EthPrice = price.GetEthPrice("USD")
 	return data
 }
 
