@@ -82,7 +82,7 @@ func NewPrysmClient(endpoint string, httpClient httpRest.Client) (*PrysmClient, 
 			accounts, err := httpClient.GetAccounts()
 			if err != nil{
 				logrus.Fatalf("Failed to get accounts")
-				return
+				continue
 			}
 			blocks, err := client.GetBlocksBySlot(head.HeadSlot, accounts)
 
