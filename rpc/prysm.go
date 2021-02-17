@@ -419,7 +419,7 @@ func (pc *PrysmClient) GetEpochData(epoch uint64, accounts types.Accounts) (*typ
 			balance, exists := validatorBalances[validator.Index]
 			if !exists {
 				logger.WithField("pubkey", fmt.Sprintf("%x", validator.Validator.PublicKey)).WithField("epoch", epoch).Errorf("error retrieving validator balance")
-				continue
+				//continue
 			}
 
 			val := &types.Validator{
@@ -435,9 +435,12 @@ func (pc *PrysmClient) GetEpochData(epoch uint64, accounts types.Accounts) (*typ
 				WithdrawableEpoch:          validator.Validator.WithdrawableEpoch,
 			}
 
-			val.Balance1d = validatorBalances1d[validator.Index]
-			val.Balance7d = validatorBalances7d[validator.Index]
-			val.Balance31d = validatorBalances31d[validator.Index]
+			if exists{
+				val.Balance1d = validatorBalances1d[validator.Index]
+				val.Balance7d = validatorBalances7d[validator.Index]
+				val.Balance31d = validatorBalances31d[validator.Index]
+			}
+
 
 			logger.Infof("GetEpochData (%v) add %v validators", epoch, val)
 			data.Validators = append(data.Validators, val)
