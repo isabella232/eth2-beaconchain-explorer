@@ -441,8 +441,6 @@ func (pc *PrysmClient) GetEpochData(epoch uint64, accounts types.Accounts) (*typ
 				val.Balance31d = validatorBalances31d[validator.Index]
 			}
 
-
-			logger.Infof("GetEpochData (%v) add %v validators", epoch, val)
 			data.Validators = append(data.Validators, val)
 
 		}
