@@ -292,6 +292,7 @@ func (pc *PrysmClient) GetEpochData(epoch uint64, accounts types.Accounts) (*typ
 	data := &types.EpochData{}
 	data.Epoch = epoch
 
+	logger.Infof("GetEpochData (%v) %v accounts", epoch, len(accounts))
 	pubeys := make([][]byte, len(accounts))
 	for i, account := range accounts {
 		decoded, err := hex.DecodeString(strings.ReplaceAll(account.PublicKey, "0x", ""))
@@ -299,6 +300,8 @@ func (pc *PrysmClient) GetEpochData(epoch uint64, accounts types.Accounts) (*typ
 			pubeys[i] = []byte(decoded)
 		}
 	}
+
+	logger.Infof("GetEpochData (%v) %v pubkeys", epoch, len(pubeys))
 
 	var validatorBalances map[uint64]uint64
 	var validatorBalances1d map[uint64]uint64
