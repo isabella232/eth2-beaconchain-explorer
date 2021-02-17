@@ -307,7 +307,7 @@ func (pc *PrysmClient) GetEpochData(epoch uint64, accounts types.Accounts) (*typ
 	var validatorBalances1d map[uint64]uint64
 	var validatorBalances7d map[uint64]uint64
 	var validatorBalances31d map[uint64]uint64
-	if utils.Config.Indexer.FullIndexOnStartup{
+	if utils.Config.Indexer.FetchBalances{
 		// Retrieve the validator balances for the requested epoch
 		start := time.Now()
 		validatorBalances, _ := pc.getBalancesForEpoch(int64(epoch), pubeys)
@@ -413,6 +413,7 @@ func (pc *PrysmClient) GetEpochData(epoch uint64, accounts types.Accounts) (*typ
 			break
 		}
 
+		logger.Infof("GetEpochData (%v) got %v validatorsList", epoch, len(validatorResponse.ValidatorList))
 		for _, validator := range validatorResponse.ValidatorList {
 
 			balance, exists := validatorBalances[validator.Index]
@@ -438,6 +439,7 @@ func (pc *PrysmClient) GetEpochData(epoch uint64, accounts types.Accounts) (*typ
 			val.Balance7d = validatorBalances7d[validator.Index]
 			val.Balance31d = validatorBalances31d[validator.Index]
 
+			logger.Infof("GetEpochData (%v) add %v validators", epoch, val)
 			data.Validators = append(data.Validators, val)
 
 		}
