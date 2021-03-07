@@ -287,11 +287,14 @@ func (pc *PrysmClient) GetEpochAssignments(epoch uint64, accounts types.Accounts
 
 // GetEpochData will get the epoch data from a Prysm client
 func (pc *PrysmClient) GetEpochData(epoch uint64, accounts types.Accounts) (*types.EpochData, error) {
+	if len(accounts) == 0 {
+		return nil, fmt.Errorf("error retrieving epoch %v, no accounts passed", epoch)
+	}
+
 	var err error
 
 	data := &types.EpochData{}
 	data.Epoch = epoch
-
 	logger.Infof("GetEpochData (%v) %v accounts", epoch, len(accounts))
 	pubeys := make([][]byte, len(accounts))
 	for i, account := range accounts {
