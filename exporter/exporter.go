@@ -151,7 +151,7 @@ func Start(client rpc.Client, httpClient httpRest.Client, accounts types.Account
 		})
 
 		for _, epoch := range keys {
-			err = ExportEpoch(epoch, types.Accounts{}, client)
+			err = ExportEpoch(epoch, accounts, client)
 
 			if err != nil {
 				logger.Errorf("error exporting epoch: %v", err)
