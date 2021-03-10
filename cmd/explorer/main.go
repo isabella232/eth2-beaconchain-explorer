@@ -147,6 +147,7 @@ func main() {
 		router.PathPrefix("/api/v1/docs/").Handler(httpSwagger.WrapHandler)
 		apiV1Router.HandleFunc("/epoch/{epoch}", handlers.ApiEpoch).Methods("GET", "OPTIONS")
 		apiV1Router.HandleFunc("/epoch/{epoch}/blocks", handlers.ApiEpochBlocks).Methods("GET", "OPTIONS")
+		apiV1Router.HandleFunc("/epoch/effectiveness/{epochFrom}/{epochTo}", handlers.ApiEffectiveness).Methods("GET", "OPTIONS")
 		apiV1Router.HandleFunc("/block/{slotOrHash}", handlers.ApiBlock).Methods("GET", "OPTIONS")
 		apiV1Router.HandleFunc("/block/{slot}/attestations", handlers.ApiBlockAttestations).Methods("GET", "OPTIONS")
 		apiV1Router.HandleFunc("/block/{slot}/deposits", handlers.ApiBlockDeposits).Methods("GET", "OPTIONS")
