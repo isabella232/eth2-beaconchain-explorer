@@ -307,7 +307,7 @@ func SqlRowsToJSON(rows *sql.Rows) ([]interface{}, error) {
 			case "INT4", "INT8":
 				scanArgs[i] = new(sql.NullInt64)
 				break
-			case "FLOAT8":
+			case "FLOAT8", "NUMERIC":
 				scanArgs[i] = new(sql.NullFloat64)
 				break
 			case "TIMESTAMP":
