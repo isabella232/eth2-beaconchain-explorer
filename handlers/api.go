@@ -111,6 +111,62 @@ func ApiEpoch(w http.ResponseWriter, r *http.Request) {
 	returnQueryResults(rows, j, r)
 }
 
+// ApiEffectiveness godoc
+// @Summary Get effectiveness from to epochs
+// @Tags Epoch
+// @Description Returns information about effectiveness from/to specific epoch
+// @Produce  json
+// @Param  epochFrom path string true "Epoch from number or the string latest"
+// @Param  epochTo path string true "Epoch to number or the string latest"
+// @Success 200 {object} string
+// @Router /api/v1/epoch/effectiveness/{epochFrom}/{epochTo} [get]
+func ApiEffectiveness(w http.ResponseWriter, r *http.Request) {
+
+	w.Header().Set("Content-Type", "application/json")
+
+	j := json.NewEncoder(w)
+	vars := mux.Vars(r)
+
+	epochFrom, err := strconv.ParseInt(vars["epochFrom"], 10, 64)
+	if err != nil && vars["epochFrom"] != "latest" {
+		sendErrorResponse(j, r.URL.String(), "invalid epochFrom provided")
+		return
+	}
+
+	epochTo, err := strconv.ParseInt(vars["epochTo"], 10, 64)
+	if err != nil && vars["epochTo"] != "latest" {
+		sendErrorResponse(j, r.URL.String(), "invalid epochTo provided")
+		return
+	}
+
+	if vars["epochFrom"] == "latest" {
+		epochFrom = int64(services.LatestEpoch())
+	}
+
+	if vars["epochTo"] == "latest" {
+		epochTo = int64(services.LatestEpoch())
+	}
+
+	rows, err := db.DB.Query(`SELECT 1 / COALESCE(AVG(1 + inclusionslot - COALESCE((SELECT MIN(slot)
+      FROM
+          blocks
+      WHERE
+          slot > attestation_assignments_p.attesterslot AND blocks.status IN ('1', '3')), 0)), 0) * 100 as average
+      FROM
+          attestation_assignments_p
+      WHERE validatorindex in (
+          select validators.validatorindex from validators
+          )  AND inclusionslot > 0 and epoch > $1 and epoch < $2;`, epochFrom, epochTo)
+
+	if err != nil {
+		sendErrorResponse(j, r.URL.String(), "could not retrieve db results")
+		return
+	}
+	defer rows.Close()
+
+	returnQueryResults(rows, j, r)
+}
+
 // ApiEpochBlocks godoc
 // @Summary Get epoch blocks by epoch number
 // @Tags Epoch
