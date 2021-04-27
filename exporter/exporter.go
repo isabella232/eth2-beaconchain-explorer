@@ -197,6 +197,7 @@ func Start(client rpc.Client, httpClient httpRest.Client, accounts types.Account
 		}
 	}
 
+	logger.Error("Exporter has done and returned nil!!!")
 	return nil
 }
 
@@ -384,10 +385,10 @@ func doFullCheck(client rpc.Client, httpClient httpRest.Client) {
 
 	// Update epoch statistics up to 10 epochs after the last finalized epoch
 	startEpoch = uint64(0)
-	if head.FinalizedEpoch > 10 {
-		startEpoch = head.FinalizedEpoch - 10
-		if head.HeadEpoch-startEpoch > 10 {
-			startEpoch = head.HeadEpoch - 10
+	if head.FinalizedEpoch > indexLimit {
+		startEpoch = head.FinalizedEpoch - indexLimit
+		if head.HeadEpoch-startEpoch > indexLimit {
+			startEpoch = head.HeadEpoch - indexLimit
 		}
 	}
 	logger.Infof("updating status of epochs %v-%v", startEpoch, head.HeadEpoch)
