@@ -182,7 +182,7 @@ func Start(client rpc.Client, httpClient httpRest.Client, accounts types.Account
 		select {
 		case block := <-newBlockChan:
 			// Do a full check on any epoch transition or after during the first run
-			if utils.EpochOfSlot(lastExportedSlot) != utils.EpochOfSlot(block.Slot) || utils.EpochOfSlot(block.Slot) == 0 {
+			if !utils.Config.Indexer.DisableFullIndex && (utils.EpochOfSlot(lastExportedSlot) != utils.EpochOfSlot(block.Slot) || utils.EpochOfSlot(block.Slot) == 0) {
 				doFullCheck(client, httpClient)
 			} else { // else just save the in epoch block
 				err := db.SaveBlock(block)

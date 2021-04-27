@@ -34,6 +34,7 @@ type Config struct {
 		CheckAllBlocksOnStartup     bool `yaml:"checkAllBlocksOnStartup" envconfig:"INDEXER_CHECK_ALL_BLOCKS_ON_STARTUP"`
 		UpdateAllEpochStatistics    bool `yaml:"updateAllEpochStatistics" envconfig:"INDEXER_UPDATE_ALL_EPOCH_STATISTICS"`
 		FetchBalances 				bool `yaml:"fetchBalances" envconfig:"INDEXER_FETCH_BALANCES"`
+		DisableFullIndex    		bool `yaml:"disableFullIndex" envconfig:"INDEXER_DISABLE_FULL_INDEX"`
 		Node                        struct {
 			Port     string `yaml:"port" envconfig:"INDEXER_NODE_PORT"`
 			Host     string `yaml:"host" envconfig:"INDEXER_NODE_HOST"`
