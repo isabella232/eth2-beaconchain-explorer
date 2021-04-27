@@ -181,10 +181,13 @@ func Start(client rpc.Client, httpClient httpRest.Client, accounts types.Account
 	for {
 		select {
 		case block := <-newBlockChan:
+			logger.Infof("New block retrieved - slot %v", block.Slot)
 			// Do a full check on any epoch transition or after during the first run
 			if utils.EpochOfSlot(lastExportedSlot) != utils.EpochOfSlot(block.Slot) || utils.EpochOfSlot(block.Slot) == 0 {
+				logger.Infof("doFullCheck - lastExportedSlot %v of epoch %v", lastExportedSlot, utils.EpochOfSlot(lastExportedSlot))
 				doFullCheck(client, httpClient)
 			} else { // else just save the in epoch block
+				logger.Infof("save block")
 				err := db.SaveBlock(block)
 				if err != nil {
 					logger.Errorf("error saving block: %v", err)
