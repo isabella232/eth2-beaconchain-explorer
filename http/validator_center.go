@@ -39,7 +39,8 @@ func (c VCClient) GetAccounts() (types.Accounts, error) {
 	logger.Infof("getting accounts...")
 	start := time.Now()
 	network := utils.Config.Indexer.ValidatorCenter.Network
-	resp, err := c.client.Get(fmt.Sprintf("%s/accounts/cached?network=%s", c.baseUrl, network))
+	ssvAccounts := utils.Config.Indexer.ValidatorCenter.SsvAccounts
+	resp, err := c.client.Get(fmt.Sprintf("%s/accounts/cached?network=%s&ssv_accounts=%s", c.baseUrl, network, ssvAccounts))
 	if err != nil {
 		return types.Accounts{}, err
 	}

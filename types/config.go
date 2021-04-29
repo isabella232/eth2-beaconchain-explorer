@@ -34,6 +34,7 @@ type Config struct {
 		CheckAllBlocksOnStartup     bool `yaml:"checkAllBlocksOnStartup" envconfig:"INDEXER_CHECK_ALL_BLOCKS_ON_STARTUP"`
 		UpdateAllEpochStatistics    bool `yaml:"updateAllEpochStatistics" envconfig:"INDEXER_UPDATE_ALL_EPOCH_STATISTICS"`
 		FetchBalances 				bool `yaml:"fetchBalances" envconfig:"INDEXER_FETCH_BALANCES"`
+		DisableFullIndex    		bool `yaml:"disableFullIndex" envconfig:"INDEXER_DISABLE_FULL_INDEX"`
 		Node                        struct {
 			Port     string `yaml:"port" envconfig:"INDEXER_NODE_PORT"`
 			Host     string `yaml:"host" envconfig:"INDEXER_NODE_HOST"`
@@ -43,6 +44,7 @@ type Config struct {
 		ValidatorCenter                        struct {
 			BaseUrl     string `yaml:"baseUrl" envconfig:"INDEXER_VALIDATOR_CENTER_BASE_URL"`
 			Network     string `yaml:"network" envconfig:"INDEXER_VALIDATOR_CENTER_NETWORK"`
+			SsvAccounts string `yaml:"ssvAccounts" envconfig:"INDEXER_VALIDATOR_CENTER_SSV_ACCOUNTS"`
 		} `yaml:"validatorCenter"`
 		Eth1Endpoint string `yaml:"eth1Endpoint" envconfig:"INDEXER_ETH1_ENDPOINT"`
 		// Deprecated Please use Phase0 config DEPOSIT_CONTRACT_ADDRESS

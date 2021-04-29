@@ -181,10 +181,13 @@ func Start(client rpc.Client, httpClient httpRest.Client, accounts types.Account
 	for {
 		select {
 		case block := <-newBlockChan:
+			logger.Infof("New block retrieved - slot %v", block.Slot)
 			// Do a full check on any epoch transition or after during the first run
 			if utils.EpochOfSlot(lastExportedSlot) != utils.EpochOfSlot(block.Slot) || utils.EpochOfSlot(block.Slot) == 0 {
+				logger.Infof("doFullCheck - lastExportedSlot %v of epoch %v", lastExportedSlot, utils.EpochOfSlot(lastExportedSlot))
 				doFullCheck(client, httpClient)
 			} else { // else just save the in epoch block
+				logger.Infof("save block")
 				err := db.SaveBlock(block)
 				if err != nil {
 					logger.Errorf("error saving block: %v", err)
@@ -194,6 +197,7 @@ func Start(client rpc.Client, httpClient httpRest.Client, accounts types.Account
 		}
 	}
 
+	logger.Error("Exporter has done and returned nil!!!")
 	return nil
 }
 
@@ -244,9 +248,10 @@ func doFullCheck(client rpc.Client, httpClient httpRest.Client) {
 
 	// If the network is experiencing finality issues limit the export to the last 10 epochs
 	// Once the network reaches finality again all epochs should be exported again
-	if head.HeadEpoch > 10 && head.HeadEpoch-head.FinalizedEpoch > 10 {
-		logger.Infof("no finality since %v epochs, limiting lookback to the last 10 epochs", head.HeadEpoch-head.FinalizedEpoch)
-		startEpoch = head.HeadEpoch - 10
+	const indexLimit = 2
+	if head.HeadEpoch > indexLimit && head.HeadEpoch-head.FinalizedEpoch > indexLimit {
+		logger.Infof("no finality since %v epochs, limiting lookback to the last %v epochs", head.HeadEpoch-head.FinalizedEpoch, indexLimit)
+		startEpoch = head.HeadEpoch - indexLimit
 	}
 
 	// Retrieve the db contents for the epocht that should be exported
@@ -258,6 +263,7 @@ func doFullCheck(client rpc.Client, httpClient httpRest.Client) {
 
 	accounts := GetValidators(httpClient)
 
+	logger.Infof("Retrieving block from epoch %v to epoch %v", startEpoch, head.HeadEpoch)
 	// For the same epochs retrieve all block data from the node
 	nodeBlocks, err := GetLastBlocks(startEpoch, head.HeadEpoch, accounts, client)
 	if err != nil {
@@ -307,22 +313,24 @@ func doFullCheck(client rpc.Client, httpClient httpRest.Client) {
 		}
 	}
 
-	// Add any missing epoch to the export set (might happen if the indexer was stopped for a long period of time)
-	epochs, err := db.GetAllEpochs()
-	if err != nil {
-		logger.Errorf("error retrieving all epochs from the db: %v", err)
-		return
-	}
-
-	if len(epochs) > 0 && epochs[len(epochs)-1] < head.HeadEpoch {
-		for i := epochs[len(epochs)-1]; i <= head.HeadEpoch; i++ {
-			epochsToExport[i] = true
+	if !utils.Config.Indexer.DisableFullIndex {
+		// Add any missing epoch to the export set (might happen if the indexer was stopped for a long period of time)
+		epochs, err := db.GetAllEpochs()
+		if err != nil {
+			logger.Errorf("error retrieving all epochs from the db: %v", err)
+			return
 		}
-	} else if len(epochs) > 0 && epochs[0] != 0 { // Export the genesis epoch if not yet present in the db
-		epochsToExport[0] = true
-	} else if len(epochs) == 0 { // No epochs are present int the db
-		for i := uint64(0); i <= head.HeadEpoch; i++ {
-			epochsToExport[i] = true
+
+		if len(epochs) > 0 && epochs[len(epochs)-1] < head.HeadEpoch {
+			for i := epochs[len(epochs)-1]; i <= head.HeadEpoch; i++ {
+				epochsToExport[i] = true
+			}
+		} else if len(epochs) > 0 && epochs[0] != 0 { // Export the genesis epoch if not yet present in the db
+			epochsToExport[0] = true
+		} else if len(epochs) == 0 { // No epochs are present int the db
+			for i := uint64(0); i <= head.HeadEpoch; i++ {
+				epochsToExport[i] = true
+			}
 		}
 	}
 
@@ -377,10 +385,10 @@ func doFullCheck(client rpc.Client, httpClient httpRest.Client) {
 
 	// Update epoch statistics up to 10 epochs after the last finalized epoch
 	startEpoch = uint64(0)
-	if head.FinalizedEpoch > 10 {
-		startEpoch = head.FinalizedEpoch - 10
-		if head.HeadEpoch-startEpoch > 10 {
-			startEpoch = head.HeadEpoch - 10
+	if head.FinalizedEpoch > indexLimit {
+		startEpoch = head.FinalizedEpoch - indexLimit
+		if head.HeadEpoch-startEpoch > indexLimit {
+			startEpoch = head.HeadEpoch - indexLimit
 		}
 	}
 	logger.Infof("updating status of epochs %v-%v", startEpoch, head.HeadEpoch)
