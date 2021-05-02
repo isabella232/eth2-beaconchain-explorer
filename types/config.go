@@ -51,11 +51,11 @@ type Config struct {
 		Eth1DepositContractAddress    string `yaml:"eth1DepositContractAddress" envconfig:"INDEXER_ETH1_DEPOSIT_CONTRACT_ADDRESS"`
 		Eth1DepositContractFirstBlock uint64 `yaml:"eth1DepositContractFirstBlock" envconfig:"INDEXER_ETH1_DEPOSIT_CONTRACT_FIRST_BLOCK"`
 		OneTimeExport                 struct {
-			Enabled    bool     `yaml:"enabled" envconfig:"INDEXER_ONETIMEEXPORT_ENABLED"`
-			StartEpoch uint64   `yaml:"startEpoch" envconfig:"INDEXER_ONETIMEEXPORT_START_EPOCH"`
-			EndEpoch   uint64   `yaml:"endEpoch" envconfig:"INDEXER_ONETIMEEXPORT_END_EPOCH"`
-			Epochs     []uint64 `yaml:"epochs" envconfig:"INDEXER_ONETIMEEXPORT_EPOCHS"`
-		} `yaml:"onetimeexport"`
+			Enabled    bool     `yaml:"enabled" envconfig:"INDEXER_ONE_TIME_EXPORT_ENABLED"`
+			StartEpoch uint64   `yaml:"startEpoch" envconfig:"INDEXER_ONE_TIME_EXPORT_START_EPOCH"`
+			EndEpoch   uint64   `yaml:"endEpoch" envconfig:"INDEXER_ONE_TIME_EXPORT_END_EPOCH"`
+			Epochs     []uint64 `yaml:"epochs" envconfig:"INDEXER_ONE_TIME_EXPORT_EPOCHS"`
+		} `yaml:"oneTimeExport"`
 	} `yaml:"indexer"`
 	Frontend struct {
 		Kong               string `yaml:"kong" envconfig:"FRONTEND_KONG"`
