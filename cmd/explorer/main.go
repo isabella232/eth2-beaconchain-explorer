@@ -93,7 +93,7 @@ func main() {
 		httpClient, err = httpRest.NewVCClient(cfg.Indexer.ValidatorCenter.BaseUrl)
 
 		accounts, err := httpClient.GetAccounts()
-		if err != nil{
+		if err != nil {
 			logrus.Fatalf("Failed to get accounts from validator-center!!")
 			return
 		}
@@ -103,7 +103,7 @@ func main() {
 				logrus.Printf("setting default rpc page size to 500")
 				utils.Config.Indexer.Node.PageSize = 500
 			}
-			rpcClient, err = rpc.NewPrysmClient(cfg.Indexer.Node.Host + ":" + cfg.Indexer.Node.Port, httpClient)
+			rpcClient, err = rpc.NewPrysmClient(cfg.Indexer.Node.Host+":"+cfg.Indexer.Node.Port, httpClient)
 			if err != nil {
 				logrus.Fatal(err)
 			}
