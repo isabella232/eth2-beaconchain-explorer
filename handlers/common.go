@@ -3,13 +3,16 @@ package handlers
 import (
 	"encoding/json"
 	"eth2-exporter/db"
+	"eth2-exporter/price"
 	"eth2-exporter/services"
 	"eth2-exporter/types"
 	"eth2-exporter/utils"
 	"fmt"
-	"github.com/lib/pq"
 	"net/http"
 	"regexp"
+	"strings"
+
+	"github.com/lib/pq"
 )
 
 var pkeyRegex = regexp.MustCompile("[^0-9A-Fa-f]+")
@@ -29,7 +32,7 @@ func GetValidatorOnlineThresholdSlot() uint64 {
 }
 
 // GetValidatorEarnings will return the earnings (last day, week, month and total) of selected validators
-func GetValidatorEarnings(validators []uint64) (*types.ValidatorEarnings, error) {
+func GetValidatorEarnings(validators []uint64, currency string) (*types.ValidatorEarnings, error) {
 	validatorsPQArray := pq.Array(validators)
 	latestEpoch := int64(services.LatestEpoch())
 	lastDayEpoch := latestEpoch - 225
@@ -131,19 +134,31 @@ func GetValidatorEarnings(validators []uint64) (*types.ValidatorEarnings, error)
 	}
 
 	return &types.ValidatorEarnings{
-		Total:     earningsTotal,
-		LastDay:   earningsLastDay,
-		LastWeek:  earningsLastWeek,
-		LastMonth: earningsLastMonth,
-		APR:       apr,
+		Total:                earningsTotal,
+		LastDay:              earningsLastDay,
+		LastWeek:             earningsLastWeek,
+		LastMonth:            earningsLastMonth,
+		APR:                  apr,
+		TotalDeposits:        totalDeposits,
+		LastDayFormatted:     utils.FormatIncome(earningsLastDay, currency),
+		LastWeekFormatted:    utils.FormatIncome(earningsLastWeek, currency),
+		LastMonthFormatted:   utils.FormatIncome(earningsLastMonth, currency),
+		TotalFormatted:       utils.FormatIncome(earningsTotal, currency),
+		TotalChangeFormatted: utils.FormatIncome(earningsTotal+totalDeposits, currency),
 	}, nil
 }
 
 // LatestState will return common information that about the current state of the eth2 chain
 func LatestState(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
+	currency := GetCurrency(r)
+	data := services.LatestState()
+	// data.Currency = currency
+	data.EthPrice = price.GetEthPrice(currency)
+	data.EthRoundPrice = price.GetEthRoundPrice(data.EthPrice)
+	data.EthTruncPrice = utils.KFormatterEthPrice(data.EthRoundPrice)
 
-	err := json.NewEncoder(w).Encode(services.LatestState())
+	err := json.NewEncoder(w).Encode(data)
 
 	if err != nil {
 		logger.Errorf("error sending latest index page data: %v", err)
@@ -153,9 +168,64 @@ func LatestState(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetCurrency(r *http.Request) string {
-	if langCookie, err := r.Cookie("currency"); err == nil {
-		return langCookie.Value
+	if cookie, err := r.Cookie("currency"); err == nil {
+		return cookie.Value
 	}
 
 	return "ETH"
+}
+
+func GetCurrencySymbol(r *http.Request) string {
+
+	cookie, err := r.Cookie("currency")
+	if err != nil {
+		return "$"
+	}
+
+	switch cookie.Value {
+	case "AUD":
+		return "A$"
+	case "CAD":
+		return "C$"
+	case "CNY":
+		return "¥"
+	case "EUR":
+		return "€"
+	case "GBP":
+		return "£"
+	case "JPY":
+		return "¥"
+	case "RUB":
+		return "₽"
+	default:
+		return "$"
+	}
+}
+
+func GetCurrentPrice(r *http.Request) int {
+	cookie, err := r.Cookie("currency")
+	if err != nil {
+		return price.GetEthRoundPrice(price.GetEthPrice("USD"))
+	}
+
+	if cookie.Value == "ETH" {
+		return price.GetEthRoundPrice(price.GetEthPrice("USD"))
+	}
+	return price.GetEthRoundPrice(price.GetEthPrice(cookie.Value))
+}
+
+func GetCurrentPriceFormatted(r *http.Request) string {
+	userAgent := r.Header.Get("User-Agent")
+	userAgent = strings.ToLower(userAgent)
+	price := GetCurrentPrice(r)
+	if strings.Contains(userAgent, "android") || strings.Contains(userAgent, "iphone") || strings.Contains(userAgent, "windows phone") {
+		return fmt.Sprintf("%s", utils.KFormatterEthPrice(price))
+	}
+	return fmt.Sprintf("%d", price)
+}
+
+func GetTruncCurrentPriceFormatted(r *http.Request) string {
+	price := GetCurrentPrice(r)
+	symbol := GetCurrencySymbol(r)
+	return fmt.Sprintf("%s %s", symbol, utils.KFormatterEthPrice(price))
 }

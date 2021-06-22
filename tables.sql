@@ -9,6 +9,7 @@ create table validators
 (
     validatorindex             int         not null,
     pubkey                     bytea       not null,
+    pubkeyhex                  text        not null default '',
     withdrawableepoch          bigint      not null,
     withdrawalcredentials      bytea       not null,
     balance                    bigint      not null,
@@ -26,8 +27,11 @@ create table validators
     primary key (validatorindex)
 );
 create index idx_validators_pubkey on validators (pubkey);
+create index idx_validators_pubkeyhex on validators (pubkeyhex);
+create index idx_validators_pubkeyhex_pattern_pos on validators (pubkeyhex varchar_pattern_ops);
 create index idx_validators_status on validators (status);
 create index idx_validators_balanceactivation on validators (balanceactivation);
+create index idx_validators_activationepoch on validators (activationepoch);
 
 drop table if exists validator_names;
 create table validator_names
@@ -36,6 +40,7 @@ create table validator_names
     name      varchar(40),
     primary key (publickey)
 );
+create index idx_validator_names_publickey on validator_names (publickey);
 
 drop table if exists validator_set;
 create table validator_set
@@ -128,6 +133,17 @@ CREATE TABLE validator_balances_7 PARTITION OF validator_balances_p FOR VALUES I
 CREATE TABLE validator_balances_8 PARTITION OF validator_balances_p FOR VALUES IN (8);
 CREATE TABLE validator_balances_9 PARTITION OF validator_balances_p FOR VALUES IN (9);
 
+drop table if exists validator_balances_recent;
+create table validator_balances_recent
+(
+    epoch          int    not null,
+    validatorindex int    not null,
+    balance        bigint not null,
+    primary key (epoch, validatorindex)
+);
+create index idx_validator_balances_recent_epoch on validator_balances_recent (epoch);
+create index idx_validator_balances_recent_validatorindex on validator_balances_recent (validatorindex);
+
 drop table if exists validator_stats;
 create table validator_stats
 (
@@ -152,6 +168,7 @@ create table validator_stats
     deposits_amount         bigint,
     primary key (validatorindex, day)
 );
+create index idx_validator_stats_day on validator_stats (day);
 
 drop table if exists validator_stats_status;
 create table validator_stats_status
@@ -160,6 +177,20 @@ create table validator_stats_status
     status boolean not null,
     primary key (day)
 );
+
+drop table if exists validator_attestation_streaks;
+create table validator_attestation_streaks
+(
+    validatorindex int not null,
+    status         int not null,
+    start          int not null,
+    length         int not null,
+    primary key (validatorindex, status, start)
+);
+create index idx_validator_attestation_streaks_validatorindex on validator_attestation_streaks (validatorindex);
+create index idx_validator_attestation_streaks_status on validator_attestation_streaks (status);
+create index idx_validator_attestation_streaks_length on validator_attestation_streaks (length);
+create index idx_validator_attestation_streaks_start on validator_attestation_streaks (start);
 
 drop table if exists queue;
 create table queue
@@ -231,12 +262,14 @@ create table blocks
     primary key (slot, blockroot)
 );
 create index idx_blocks_proposer on blocks (proposer);
+create index idx_blocks_epoch on blocks (epoch);
 
 drop table if exists blocks_proposerslashings;
 create table blocks_proposerslashings
 (
     block_slot         int    not null,
     block_index        int    not null,
+    block_root         bytea  not null default '',
     proposerindex      int    not null,
     header1_slot       bigint not null,
     header1_parentroot bytea  not null,
@@ -256,6 +289,7 @@ create table blocks_attesterslashings
 (
     block_slot                   int       not null,
     block_index                  int       not null,
+    block_root                   bytea     not null default '',
     attestation1_indices         integer[] not null,
     attestation1_signature       bytea     not null,
     attestation1_slot            bigint    not null,
@@ -282,6 +316,7 @@ create table blocks_attestations
 (
     block_slot      int   not null,
     block_index     int   not null,
+    block_root      bytea not null default '',
     aggregationbits bytea not null,
     validators      int[] not null,
     signature       bytea not null,
@@ -303,6 +338,7 @@ create table blocks_deposits
 (
     block_slot            int    not null,
     block_index           int    not null,
+    block_root            bytea  not null default '',
     proof                 bytea[],
     publickey             bytea  not null,
     withdrawalcredentials bytea  not null,
@@ -316,6 +352,7 @@ create table blocks_voluntaryexits
 (
     block_slot     int   not null,
     block_index    int   not null,
+    block_root     bytea not null default '',
     epoch          int   not null,
     validatorindex int   not null,
     signature      bytea not null,
@@ -377,12 +414,40 @@ create table users
     password_reset_ts       timestamp without time zone,
     register_ts             timestamp without time zone,
     api_key                 character varying(256) unique,
-    stripe_customerID       character varying(256) unique,
-    stripe_subscriptionID   character varying(256) unique,
-    stripe_priceID          character varying(256) unique,
-    stripe_active           bool                   not null default 'f',
+    stripe_customer_id      character varying(256) unique,
     primary key (id, email)
 );
+
+drop table if exists users_stripe_subscriptions;
+create table users_stripe_subscriptions
+(
+    subscription_id character varying(256) unique not null,
+    customer_id     character varying(256)        not null,
+    price_id        character varying(256)        not null,
+    active          bool not null default 'f',
+    payload         json                          not null,
+    primary key (customer_id, subscription_id, price_id)
+);
+
+drop table if exists users_app_subscriptions;
+create table users_app_subscriptions
+(
+    id              serial                        not null,
+    user_id         int                           not null,
+    product_id      character varying(256)        not null,
+    price_micros    int                           not null,
+    currency        character varying(10)         not null,
+    created_at      timestamp without time zone   not null,
+    updated_at      timestamp without time zone   not null,
+    validate_remotely boolean not null default 't',
+    active          bool not null default 'f',
+    store           character varying(50)         not null,
+    expires_at      timestamp without time zone   not null,
+    reject_reason   character varying(50),
+    receipt         character varying(99999)       not null,
+    receipt_hash    character varying(1024)        not null unique
+);
+create index idx_user_app_subscriptions on users_app_subscriptions (user_id);
 
 drop table if exists oauth_apps;
 create table oauth_apps
@@ -449,6 +514,18 @@ create table users_subscriptions
     primary key (user_id, event_name, event_filter)
 );
 
+drop table if exists users_notifications;
+create table users_notifications
+(
+    id              serial                      not null,
+    user_id         int                         not null,
+    event_name      character varying(100)      not null,
+    event_filter    text                        not null default '',
+    sent_ts         timestamp without time zone,
+    epoch           int                         not null,
+    primary key(user_id, event_name, event_filter, sent_ts)
+);
+
 drop table if exists users_validators_tags;
 create table users_validators_tags
 (
@@ -482,4 +559,152 @@ create table api_statistics
     call   varchar(64)                 not null,
     count  int                         not null default 0,
     primary key (ts, apikey, call)
+);
+
+drop table if exists stats_meta;
+CREATE TABLE stats_meta (
+	id 				bigserial 			primary key,
+	version 			int 				not null default 1,
+	ts 				timestamp  			not null,
+	process 			character varying(20) 		not null,
+	machine 		 	character varying(50),
+    created_trunc       timestamp   not null,
+    exporter_version          integer,
+	
+	user_id 		 	bigint	 	 		not null,
+    foreign key(user_id) references users(id),
+    UNIQUE (user_id, created_trunc, process, machine)
+);
+
+create index idx_stats_machine on stats_meta (machine);
+create index idx_stats_user on stats_meta (user_id);
+
+drop table if exists stats_process;
+CREATE TABLE stats_process (
+	id 				bigserial 			primary key,
+	
+	cpu_process_seconds_total 	bigint   			not null,
+	
+	memory_process_bytes	 	bigint	 	 		not null,
+	
+	client_name 			character varying(25)  	not null,
+	client_version		 	character varying(25)	 	not null,
+	client_build		 	int 				not null,
+	
+	sync_eth2_fallback_configured  bool 				not null,
+	sync_eth2_fallback_connected 	bool	 			not null,
+	
+	meta_id 	 		bigint    			not null,
+	
+	foreign key(meta_id) references stats_meta(id)
+);
+
+drop table if exists stats_add_beaconnode;
+CREATE TABLE stats_add_beaconnode (
+	id 					bigserial 		primary key,
+
+	disk_beaconchain_bytes_total	 	bigint	 		not null,
+	network_libp2p_bytes_total_receive  	bigint	 		not null,
+	network_libp2p_bytes_total_transmit  	bigint	 		not null,
+	network_peers_connected 		int	 		not null,
+	sync_eth1_connected	 		bool	 		not null,
+	sync_eth2_synced 			bool	 		not null,
+	sync_beacon_head_slot	 		bigint	 		not null,
+    sync_eth1_fallback_configured  bool	 			not null,
+	sync_eth1_fallback_connected 	bool	 			not null,
+	
+	general_id		 		bigint	 		not null,
+	
+	foreign key(general_id) references stats_process(id)
+);
+
+drop table if exists stats_add_validator;
+CREATE TABLE stats_add_validator (
+	id		 			bigserial	 	primary key,
+	validator_total 			int	 		not null,
+	validator_active	 		int	 		not null,
+	
+	general_id	 			bigint		 	not null,
+	
+	foreign key(general_id) references stats_process(id)
+);
+
+drop table if exists stats_system;
+CREATE TABLE stats_system (
+	id		 			bigserial 	 	primary key,
+
+	cpu_cores 				int	 		not null,
+	cpu_threads 				int	 		not null,
+	
+	cpu_node_system_seconds_total  	bigint 		not null,
+	cpu_node_user_seconds_total 		bigint	 		not null,
+	cpu_node_iowait_seconds_total	 	bigint	 		not null,
+	cpu_node_idle_seconds_total	 	bigint	 		not null,
+	
+	memory_node_bytes_total 		bigint	 		not null,
+	memory_node_bytes_free	 		bigint	 		not null,
+	memory_node_bytes_cached 		bigint	 		not null,
+	memory_node_bytes_buffers 		bigint	 		not null,
+	
+	disk_node_bytes_total	 		bigint	 		not null,
+	disk_node_bytes_free	 		bigint	 		not null,
+	
+	disk_node_io_seconds	 		bigint	 		not null,
+	disk_node_reads_total	 		bigint	 		not null,
+	disk_node_writes_total	 		bigint 		not null,
+	
+	network_node_bytes_total_receive 	bigint	 		not null,
+	network_node_bytes_total_transmit 	bigint	 		not null,
+	
+	misc_node_boot_ts_seconds	 	bigint		 	not null,
+	misc_os		 		character varying(6)  	not null,
+	
+	meta_id	 			bigint		 	not null,
+	
+	
+	foreign key(meta_id) references stats_meta(id)
+);
+
+drop table if exists stake_pools_stats;
+create table stake_pools_stats
+(
+    id serial not null, 
+    address text not null, 
+    deposit int, 
+    name text not null, 
+    category text, 
+    PRIMARY KEY(id, address, deposit, name)
+);
+
+drop table if exists price;
+create table price
+(
+    ts     timestamp without time zone not null,
+    eur numeric(20,10)                not null,
+    usd numeric(20,10)                not null,
+    rub numeric(20,10)                not null,
+    cny numeric(20,10)                not null,
+    cad numeric(20,10)                not null,
+    jpy numeric(20,10)                not null,
+    gbp numeric(20,10)                not null,
+    primary key (ts)
+);
+
+drop table if exists staking_pools_chart;
+create table staking_pools_chart
+(
+    epoch                      int  not null,
+    name                       text not null, 
+    income                     bigint not null, 
+    balance                    bigint not null, 
+    PRIMARY KEY(epoch, name)
+);
+
+drop table if exists stats_sharing;
+CREATE TABLE stats_sharing (
+	id 				bigserial 			primary key,
+	ts 				timestamp  			not null,
+	share           bool             not null,
+	user_id 		 	bigint	 	 		not null,
+    foreign key(user_id) references users(id)
 );
