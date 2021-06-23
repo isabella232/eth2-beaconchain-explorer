@@ -68,6 +68,15 @@ spec:
       labels:
         app: eth2-beaconchain-explorer-pyrmont
     spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/role
+                operator: In
+                values:
+                - blockchain
       containers:
       - name: eth2-beaconchain-explorer-pyrmont
         image: REPLACE_DOCKER_REPO:REPLACE_IMAGETAG 
@@ -83,3 +92,7 @@ spec:
       - name: eth2-beaconchain-explorer-pyrmont-secret
         secret:
           secretName: eth2-beaconchain-explorer-pyrmont-secret
+      tolerations:
+      - effect: NoSchedule
+        key: kubernetes.io/role
+        operator: Exists            
