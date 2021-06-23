@@ -7,6 +7,7 @@ bin/
 docker/
 templates/imprint.html
 config.yml
+frontend.yml
 config-staging.yml
 config-pyrmont.yml
 config-lighthouse.yml
@@ -15,4 +16,8 @@ bootstrap/node_modules
 private/
 run-local
 docker-compose-private.yml
-static/bundle
+static/bundle/css
+static/bundle/js
+docs
+
+.vscode

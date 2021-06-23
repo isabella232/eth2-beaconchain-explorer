@@ -49,8 +49,6 @@ func RegisterPost(w http.ResponseWriter, r *http.Request) {
 	session, err := utils.SessionStore.Get(r, authSessionName)
 	if err != nil {
 		logger.Errorf("error retrieving session: %v", err)
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
 	}
 
 	err = r.ParseForm()
@@ -166,8 +164,6 @@ func LoginPost(w http.ResponseWriter, r *http.Request) {
 	session, err := utils.SessionStore.Get(r, authSessionName)
 	if err != nil {
 		logger.Errorf("Error retrieving session for login route: %v", err)
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
 	}
 
 	err = r.ParseForm()
@@ -199,7 +195,7 @@ func LoginPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !user.Confirmed {
-		session.AddFlash("Error: Email has not been comfirmed, please click the link in the email we sent you or <a href='/resend'>resend link</a>!")
+		session.AddFlash("Error: Email has not been confirmed, please click the link in the email we sent you or <a href='/resend'>resend link</a>!")
 		session.Save(r, w)
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
@@ -587,7 +583,7 @@ Best regards,
 
 %[1]s
 `, utils.Config.Frontend.SiteDomain, emailConfirmationHash)
-	err = mail.SendMail(email, subject, msg)
+	err = mail.SendMail(email, subject, msg, []types.EmailAttachment{})
 	if err != nil {
 		return err
 	}
@@ -638,7 +634,7 @@ Best regards,
 
 %[1]s
 `, utils.Config.Frontend.SiteDomain, resetHash)
-	err = mail.SendMail(email, subject, msg)
+	err = mail.SendMail(email, subject, msg, []types.EmailAttachment{})
 	if err != nil {
 		return err
 	}
