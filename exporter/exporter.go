@@ -31,6 +31,13 @@ func Start(client rpc.Client, httpClient httpRest.Client, accounts types.Account
 	go genesisDepositsExporter()
 	go checkSubscriptions()
 	go cleanupOldMachineStats()
+	if utils.Config.SSVExporter.Enabled {
+		go ssvExporter()
+	}
+
+	if utils.Config.Indexer.PubKeyTagsExporter.Enabled {
+		go UpdatePubkeyTag()
+	}
 
 	// wait until the beacon-node is available
 	for {
