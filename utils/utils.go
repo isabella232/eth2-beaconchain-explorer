@@ -1,13 +1,13 @@
 package utils
 
 import (
+	"bytes"
 	securerand "crypto/rand"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
-	ethclients "eth2-exporter/ethClients"
 	"eth2-exporter/price"
 	"eth2-exporter/types"
 	"fmt"
@@ -91,6 +91,8 @@ func GetTemplateFuncs() template.FuncMap {
 		"formatTimestampTs":                       FormatTimestampTs,
 		"formatValidatorName":                     FormatValidatorName,
 		"formatAttestationInclusionEffectiveness": FormatAttestationInclusionEffectiveness,
+		"formatValidatorTags":                     FormatValidatorTags,
+		"formatValidatorTag":                      FormatValidatorTag,
 		"epochOfSlot":                             EpochOfSlot,
 		"dayToTime":                               DayToTime,
 		"contains":                                strings.Contains,
@@ -122,9 +124,8 @@ func GetTemplateFuncs() template.FuncMap {
 			}
 			return false
 		},
-		"isUserClientUpdated":       ethclients.IsUserClientUpdated,
-		"dismissClientNotification": ethclients.DismissClientNotification,
-		"isUserSubscribed":          ethclients.IsUserSubscribed,
+		"stringsJoin":     strings.Join,
+		"formatAddCommas": FormatAddCommas,
 	}
 }
 
@@ -138,6 +139,10 @@ func IncludeHTML(path string) template.HTML {
 		return ""
 	}
 	return template.HTML(string(b))
+}
+
+func GraffitiToSring(graffiti []byte) string {
+	return strings.Map(fixUtf, string(bytes.Trim(graffiti, "\x00")))
 }
 
 // FormatGraffitiString formats (and escapes) the graffiti

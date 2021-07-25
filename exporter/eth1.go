@@ -86,7 +86,7 @@ func eth1DepositsExporter() {
 		}
 		// if we are not synced to the head yet fetch missing blocks in batches of size 1000
 		if toBlock-fromBlock > eth1MaxFetch {
-			toBlock = fromBlock + 250
+			toBlock = fromBlock + 1000
 		}
 		if toBlock > blockHeight {
 			toBlock = blockHeight
