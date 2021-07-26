@@ -14,7 +14,6 @@ test:
 	go test -tags=blst_enabled ./...
 
 explorer:
-	#rm -rf bin/
 	mkdir -p bin/
 	cp -r templates bin/
 	go run cmd/bundle/main.go
