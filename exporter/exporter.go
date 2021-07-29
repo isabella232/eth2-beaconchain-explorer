@@ -254,7 +254,7 @@ func doFullCheck(client rpc.Client, httpClient httpRest.Client) {
 
 	// If the network is experiencing finality issues limit the export to the last 10 epochs
 	// Once the network reaches finality again all epochs should be exported again
-	const indexLimit = 10
+	const indexLimit = 1
 	if head.HeadEpoch > indexLimit && head.HeadEpoch-head.FinalizedEpoch > indexLimit {
 		logger.Infof("no finality since %v epochs, limiting lookback to the last %v epochs", head.HeadEpoch-head.FinalizedEpoch, indexLimit)
 		startEpoch = head.HeadEpoch - indexLimit
