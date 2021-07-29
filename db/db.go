@@ -49,7 +49,7 @@ func mustInitDB(username, password, host, port, name string) *sqlx.DB {
 	}
 	dbConnectionTimeout.Stop()
 
-	dbConn.SetConnMaxIdleTime(time.Second * 30)
+	//dbConn.SetConnMaxIdleTime(time.Second * 30)
 	dbConn.SetConnMaxLifetime(time.Second * 60)
 
 	return dbConn
