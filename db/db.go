@@ -31,6 +31,7 @@ var DB *sqlx.DB
 var logger = logrus.New().WithField("module", "db")
 
 func mustInitDB(username, password, host, port, name string) *sqlx.DB {
+	logrus.SetLevel(logrus.TraceLevel)
 	dbConn, err := sqlx.Open("pgx", fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", username, password, host, port, name))
 	if err != nil {
 		logger.Fatal(err)
