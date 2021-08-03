@@ -31,6 +31,13 @@ func Start(client rpc.Client, httpClient httpRest.Client, accounts types.Account
 	go genesisDepositsExporter()
 	go checkSubscriptions()
 	go cleanupOldMachineStats()
+	if utils.Config.SSVExporter.Enabled {
+		go ssvExporter()
+	}
+
+	if utils.Config.Indexer.PubKeyTagsExporter.Enabled {
+		go UpdatePubkeyTag()
+	}
 
 	// wait until the beacon-node is available
 	for {
@@ -88,25 +95,28 @@ func Start(client rpc.Client, httpClient httpRest.Client, accounts types.Account
 			logger.Fatal(err)
 		}
 
-		head, err := client.GetChainHead()
-		if err != nil {
-			logger.Errorf("IndexMissingEpochsOnStartup - error retrieving chain head: %v", err)
+		if len(epochs) > 0 && epochs[0] != 0 {
+			err := ExportEpoch(0, accounts, client)
+			if err != nil {
+				logger.Error(err)
+			}
+			logger.Printf("finished export for epoch %v", 0)
+			epochs = append([]uint64{0}, epochs...)
 		}
 
-		if len(epochs) == 0 || epochs[len(epochs)-1] < head.HeadEpoch-1 { // export head epoch -1
-			var dbCurrentEpoch = 0
-			if len(epochs) > 0 {
-				dbCurrentEpoch = int(epochs[len(epochs)-1])
+		for i := 0; i < len(epochs)-1; i++ {
+			if epochs[i] != epochs[i+1]-1 && epochs[i] != epochs[i+1] {
+				logger.Println("Epochs between", epochs[i], "and", epochs[i+1], "are missing!")
+
+				for epoch := epochs[i]; epoch <= epochs[i+1]; epoch++ {
+					err := ExportEpoch(epoch, accounts, client)
+					if err != nil {
+						logger.Error(err)
+					}
+					logger.Printf("finished export for epoch %v", epoch)
+				}
 			}
-			logger.Errorf("Head epoch is not synced. db current - %v | head - %v", dbCurrentEpoch, head.HeadEpoch-1)
-			err := ExportEpoch(head.HeadEpoch-1, accounts, client)
-			if err != nil {
-				logger.Error("Exporting epoch v% error- v%", head.HeadEpoch-1, err)
-			}
-			epochs = append([]uint64{head.HeadEpoch - 1}, epochs...)
 		}
-		logger.Errorf("Finished exporting head - 1 epoch (%v)", head.HeadEpoch-1)
-		go IndexMissingEpochsOnStartup(client, httpClient, accounts, epochs)
 	}
 
 	if utils.Config.Indexer.CheckAllBlocksOnStartup {
@@ -225,34 +235,6 @@ func Start(client rpc.Client, httpClient httpRest.Client, accounts types.Account
 	return nil
 }
 
-func IndexMissingEpochsOnStartup(client rpc.Client, httpClient httpRest.Client, accounts types.Accounts, epochs []uint64) {
-	if len(epochs) > 0 && epochs[0] != 0 { // export epoch 0 if missing
-		logger.Printf("IndexMissingEpochsOnStartup - first epoch %v", epochs[0])
-		err := ExportEpoch(0, accounts, client)
-		if err != nil {
-			logger.Error(err)
-		}
-		logger.Printf("finished export for epoch %v", 0)
-		epochs = append([]uint64{0}, epochs...)
-	}
-
-	for i := 0; i < len(epochs)-1; i++ {
-		if epochs[i] != epochs[i+1]-1 && epochs[i] != epochs[i+1] {
-			logger.Println("Epochs between", epochs[i], "and", epochs[i+1], "are missing!")
-
-			for epoch := epochs[i]; epoch <= epochs[i+1]; epoch++ {
-				logger.Println("Fetching epoch - ", epoch)
-				accounts := GetValidators(httpClient)
-				err := ExportEpoch(epoch, accounts, client)
-				if err != nil {
-					logger.Error(err)
-				}
-				logger.Printf("finished export for epoch %v", epoch)
-			}
-		}
-	}
-}
-
 // Will ensure the db is fully in sync with the node
 func doFullCheck(client rpc.Client, httpClient httpRest.Client) {
 	logger.Infof("checking for new blocks/epochs to export")
@@ -272,7 +254,7 @@ func doFullCheck(client rpc.Client, httpClient httpRest.Client) {
 
 	// If the network is experiencing finality issues limit the export to the last 10 epochs
 	// Once the network reaches finality again all epochs should be exported again
-	const indexLimit = 2
+	const indexLimit = 1
 	if head.HeadEpoch > indexLimit && head.HeadEpoch-head.FinalizedEpoch > indexLimit {
 		logger.Infof("no finality since %v epochs, limiting lookback to the last %v epochs", head.HeadEpoch-head.FinalizedEpoch, indexLimit)
 		startEpoch = head.HeadEpoch - indexLimit
