@@ -49,13 +49,14 @@ func Start(client rpc.Client) error {
 	}
 
 	if utils.Config.Indexer.FullIndexOnStartup {
-		logger.Printf("performing one time full db reindex")
+		logger.Printf("starting FullIndexOnStartup...")
 		head, err := client.GetChainHead()
 		if err != nil {
 			logger.Fatal(err)
 		}
 
 		for epoch := uint64(1); epoch <= head.HeadEpoch; epoch++ {
+			logger.Printf("FullIndexOnStartup exporting epoch - %s", string(epoch))
 			err := ExportEpoch(epoch, client)
 
 			if err != nil {
