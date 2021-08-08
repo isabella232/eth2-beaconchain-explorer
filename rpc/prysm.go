@@ -268,28 +268,28 @@ func (pc *PrysmClient) GetEpochData(epoch uint64) (*types.EpochData, error) {
 	data := &types.EpochData{}
 	data.Epoch = epoch
 
-	// Retrieve the validator balances for the requested epoch
-	start := time.Now()
-	validatorBalances, err := pc.getBalancesForEpoch(int64(epoch))
-	logger.Printf("retrieved data for %v validator balances for epoch %v took %v", len(validatorBalances), epoch, time.Since(start))
-
-	// Retrieve the validator balances for the n-1d epoch
-	start = time.Now()
-	epoch1d := int64(epoch) - 225
-	validatorBalances1d, err := pc.getBalancesForEpoch(epoch1d)
-	logger.Printf("retrieved data for %v validator balances for 1d epoch %v took %v", len(validatorBalances), epoch1d, time.Since(start))
-
-	// Retrieve the validator balances for the n-7d epoch
-	start = time.Now()
-	epoch7d := int64(epoch) - 225*7
-	validatorBalances7d, err := pc.getBalancesForEpoch(epoch7d)
-	logger.Printf("retrieved data for %v validator balances for 7d epoch %v took %v", len(validatorBalances), epoch7d, time.Since(start))
-
-	// Retrieve the validator balances for the n-7d epoch
-	start = time.Now()
-	epoch31d := int64(epoch) - 225*31
-	validatorBalances31d, err := pc.getBalancesForEpoch(epoch31d)
-	logger.Printf("retrieved data for %v validator balances for 31d epoch %v took %v", len(validatorBalances), epoch31d, time.Since(start))
+	//// Retrieve the validator balances for the requested epoch
+	//start := time.Now()
+	//validatorBalances, err := pc.getBalancesForEpoch(int64(epoch))
+	//logger.Printf("retrieved data for %v validator balances for epoch %v took %v", len(validatorBalances), epoch, time.Since(start))
+	//
+	//// Retrieve the validator balances for the n-1d epoch
+	//start = time.Now()
+	//epoch1d := int64(epoch) - 225
+	//validatorBalances1d, err := pc.getBalancesForEpoch(epoch1d)
+	//logger.Printf("retrieved data for %v validator balances for 1d epoch %v took %v", len(validatorBalances), epoch1d, time.Since(start))
+	//
+	//// Retrieve the validator balances for the n-7d epoch
+	//start = time.Now()
+	//epoch7d := int64(epoch) - 225*7
+	//validatorBalances7d, err := pc.getBalancesForEpoch(epoch7d)
+	//logger.Printf("retrieved data for %v validator balances for 7d epoch %v took %v", len(validatorBalances), epoch7d, time.Since(start))
+	//
+	//// Retrieve the validator balances for the n-7d epoch
+	//start = time.Now()
+	//epoch31d := int64(epoch) - 225*31
+	//validatorBalances31d, err := pc.getBalancesForEpoch(epoch31d)
+	//logger.Printf("retrieved data for %v validator balances for 31d epoch %v took %v", len(validatorBalances), epoch31d, time.Since(start))
 
 	data.ValidatorAssignmentes, err = pc.GetEpochAssignments(epoch)
 	if err != nil {
@@ -373,17 +373,17 @@ func (pc *PrysmClient) GetEpochData(epoch uint64) (*types.EpochData, error) {
 
 		for _, validator := range validatorResponse.ValidatorList {
 
-			balance, exists := validatorBalances[validator.Index]
-			if !exists {
-				logger.WithField("pubkey", fmt.Sprintf("%x", validator.Validator.PublicKey)).WithField("epoch", epoch).Errorf("error retrieving validator balance")
-				continue
-			}
+			//balance, exists := validatorBalances[validator.Index]
+			//if !exists {
+			//	logger.WithField("pubkey", fmt.Sprintf("%x", validator.Validator.PublicKey)).WithField("epoch", epoch).Errorf("error retrieving validator balance")
+			//	continue
+			//}
 
 			val := &types.Validator{
 				Index:                      validator.Index,
 				PublicKey:                  validator.Validator.PublicKey,
 				WithdrawalCredentials:      validator.Validator.WithdrawalCredentials,
-				Balance:                    balance,
+				//Balance:                    balance,
 				EffectiveBalance:           validator.Validator.EffectiveBalance,
 				Slashed:                    validator.Validator.Slashed,
 				ActivationEligibilityEpoch: uint64(validator.Validator.ActivationEligibilityEpoch),
@@ -392,9 +392,9 @@ func (pc *PrysmClient) GetEpochData(epoch uint64) (*types.EpochData, error) {
 				WithdrawableEpoch:          uint64(validator.Validator.WithdrawableEpoch),
 			}
 
-			val.Balance1d = validatorBalances1d[validator.Index]
-			val.Balance7d = validatorBalances7d[validator.Index]
-			val.Balance31d = validatorBalances31d[validator.Index]
+			//val.Balance1d = validatorBalances1d[validator.Index]
+			//val.Balance7d = validatorBalances7d[validator.Index]
+			//val.Balance31d = validatorBalances31d[validator.Index]
 
 			data.Validators = append(data.Validators, val)
 
