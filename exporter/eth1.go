@@ -36,6 +36,7 @@ var eth1Client *ethclient.Client
 var eth1RPCClient *gethRPC.Client
 var infuraToMuchResultsErrorRE = regexp.MustCompile("query returned more than [0-9]+ results")
 var gethRequestEntityTooLargeRE = regexp.MustCompile("413 Request Entity Too Large")
+var gethRequestPayloadTooLargeRE = regexp.MustCompile("413 Payload Too Large")
 
 // eth1DepositsExporter regularly fetches the depositcontract-logs of the
 // last 100 blocks and exports the deposits into the database.
@@ -98,7 +99,7 @@ func eth1DepositsExporter() {
 
 		depositsToSave, err := fetchEth1Deposits(fromBlock, toBlock)
 		if err != nil {
-			if infuraToMuchResultsErrorRE.MatchString(err.Error()) || gethRequestEntityTooLargeRE.MatchString(err.Error()) {
+			if infuraToMuchResultsErrorRE.MatchString(err.Error()) || gethRequestEntityTooLargeRE.MatchString(err.Error()) || gethRequestPayloadTooLargeRE.MatchString(err.Error()) {
 				toBlock = fromBlock + 100
 				if toBlock > blockHeight {
 					toBlock = blockHeight
