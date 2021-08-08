@@ -135,7 +135,7 @@ func main() {
 			return
 		}
 
-		go services.StartHistoricPriceService()
+		// go services.StartHistoricPriceService()
 		go exporter.Start(rpcClient)
 	}
 
