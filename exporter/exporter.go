@@ -86,6 +86,7 @@ func Start(client rpc.Client) error {
 	}
 
 	if utils.Config.Indexer.IndexMissingEpochsOnStartup {
+		logger.Printf("starting IndexMissingEpochsOnStartup...")
 		// Add any missing epoch to the export set (might happen if the indexer was stopped for a long period of time)
 		epochs, err := db.GetAllEpochs()
 		if err != nil {
@@ -93,6 +94,7 @@ func Start(client rpc.Client) error {
 		}
 
 		if len(epochs) > 0 && epochs[0] != 0 {
+			logger.Printf("IndexMissingEpochsOnStartup start exporting epoch 0")
 			err := ExportEpoch(0, client)
 			if err != nil {
 				logger.Error(err)
