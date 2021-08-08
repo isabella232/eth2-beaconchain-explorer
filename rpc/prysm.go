@@ -458,6 +458,7 @@ func (pc *PrysmClient) GetBlocksBySlot(slot uint64) ([]*types.Block, error) {
 
 	blocks := make([]*types.Block, 0)
 
+	start := time.Now()
 	blocksRequest := &ethpb.ListBlocksRequest{PageSize: utils.Config.Indexer.Node.PageSize, QueryFilter: &ethpb.ListBlocksRequest_Slot{Slot: eth2types.Slot(slot)}}
 	if slot == 0 {
 		blocksRequest.QueryFilter = &ethpb.ListBlocksRequest_Genesis{Genesis: true}
@@ -471,6 +472,7 @@ func (pc *PrysmClient) GetBlocksBySlot(slot uint64) ([]*types.Block, error) {
 		return blocks, nil
 	}
 
+	logger.Infof("retrieved blocks response for slot %v with size blocks %v took %v", slot, len(blocksResponse.BlockContainers), time.Since(start))
 	for _, block := range blocksResponse.BlockContainers {
 
 		// Make sure that blocks from the genesis epoch have their Eth1Data field set
