@@ -24,7 +24,7 @@ services:
       - POSTGRES_PASSWORD=debug
       - POSTGRES_USER=debug
       - POSTGRES_DB=beaconcha
-      - POSTGRES_HOST=postgres
+      - POSTGRES_HOST=localhost
       - POSTGRES_PORT=5432
     #        command: docker exec -i 46bc72682b79 psql -U debug -d beaconcha < tables.sql
     #        command: ["/bin/sh -c postgres.sh"]

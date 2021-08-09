@@ -210,7 +210,7 @@ func Start(client rpc.Client) error {
 	}
 
 	newBlockChan := client.GetNewBlockChan()
-
+	logger.Info("start main loop")
 	lastExportedSlot := uint64(0)
 	for {
 		select {
@@ -219,6 +219,7 @@ func Start(client rpc.Client) error {
 			if utils.EpochOfSlot(lastExportedSlot) != utils.EpochOfSlot(block.Slot) || utils.EpochOfSlot(block.Slot) == 0 {
 				doFullCheck(client)
 			} else { // else just save the in epoch block
+				logger.Info("saving block slot %v", block.Slot)
 				err := db.SaveBlock(block)
 				if err != nil {
 					logger.Errorf("error saving block: %v", err)

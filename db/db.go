@@ -31,6 +31,7 @@ var DB *sqlx.DB
 var logger = logrus.New().WithField("module", "db")
 
 func mustInitDB(username, password, host, port, name string) *sqlx.DB {
+	fmt.Printf("DB args - %s, %s , %s, %s, %s ---> %s\n", username, password, host, port, name, fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", username, password, host, port, name))
 	dbConn, err := sqlx.Open("pgx", fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", username, password, host, port, name))
 	if err != nil {
 		logger.Fatal(err)
@@ -49,7 +50,7 @@ func mustInitDB(username, password, host, port, name string) *sqlx.DB {
 	}
 	dbConnectionTimeout.Stop()
 
-	dbConn.SetConnMaxIdleTime(time.Second * 30)
+	//dbConn.SetConnMaxIdleTime(time.Second * 30)
 	dbConn.SetConnMaxLifetime(time.Second * 60)
 
 	return dbConn

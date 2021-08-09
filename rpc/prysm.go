@@ -34,7 +34,8 @@ func NewPrysmClient(endpoint string) (*PrysmClient, error) {
 		// Maximum receive value 128 MB
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(128 * 1024 * 1024)),
 	}
-	conn, err := grpc.Dial(endpoint, dialOpts...)
+	ctx, _ := context.WithTimeout(context.Background(), time.Second * 10)
+	conn, err := grpc.DialContext(ctx, endpoint, dialOpts...)
 
 	if err != nil {
 		return nil, err
@@ -228,8 +229,10 @@ func (pc *PrysmClient) GetEpochAssignments(epoch uint64) (*types.EpochAssignment
 	for {
 		AssignmentRequestStart := time.Now()
 		validatorAssignmentRequest.PageToken = validatorAssignmentResponse.NextPageToken
+		logger.Printf("sending ListValidatorAssignments request for the %v", len(validatorAssignmentes))
 		validatorAssignmentResponse, err = pc.client.ListValidatorAssignments(context.Background(), validatorAssignmentRequest)
 		if err != nil {
+			fmt.Printf("ListValidatorAssignments error!! - %s\n", err.Error())
 			return nil, fmt.Errorf("error retrieving validator assignment response for caching: %v", err)
 		}
 
@@ -484,11 +487,13 @@ func (pc *PrysmClient) GetBlocksBySlot(slot uint64) ([]*types.Block, error) {
 			}
 		}
 
+		logger.Infof("starting parseRpcBlock... for block slot num %v", block.Block.Block.Slot)
 		b, err := pc.parseRpcBlock(block)
 		if err != nil {
 			return nil, err
 		}
 
+		logger.Infof("parseRpcBlock done")
 		blocks = append(blocks, b)
 	}
 
