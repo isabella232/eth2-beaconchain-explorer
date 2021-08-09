@@ -95,4 +95,4 @@ spec:
       tolerations:
       - effect: NoSchedule
         key: kubernetes.io/role
-        operator: Exists            
+        operator: Exists
