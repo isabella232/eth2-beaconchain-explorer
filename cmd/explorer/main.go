@@ -24,7 +24,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	_ "eth2-exporter/docs"
+	//_ "eth2-exporter/docs"
 
 	"github.com/gorilla/csrf"
 	"github.com/gorilla/mux"
@@ -146,7 +146,7 @@ func main() {
 			return
 		}
 
-		//go services.StartHistoricPriceService()
+		// go services.StartHistoricPriceService()
 		go exporter.Start(rpcClient, httpClient, accounts)
 	}
 

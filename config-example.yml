@@ -1,39 +1,35 @@
 # Database credentials
 database:
-  user: "<dbuser>"
-  name: "<dbname>"
-  host: "<dbhost>"
-  port: "<dbport>"
-  password: "<dbpassword>"
+  user: "debug"
+  name: "beaconcha"
+  host: "localhost"
+  port: "5432"
+  password: "debug"
 
 # Chain network configuration (example will work for the prysm testnet)
 chain:
   slotsPerEpoch: 32
   secondsPerSlot: 12
-  genesisTimestamp: 1573489682
+  genesisTimestamp: 1605693607
   minGenesisActiveValidatorCount: 16384
 
 # Note: It is possible to run either the frontend or the indexer or both at the same time
 # Frontend config
 frontend:
+  onlyAPI: false
   enabled: true # Enable or disable to web frontend
-  phase0path: "./phase0.yml"
   imprint: "templates/imprint.example.html}**"  # Path to the imprint page content
   siteName: "Ethereum 2.0 Beacon Chain (Phase 0) Block Chain Explorer" # Name of the site, displayed in the title tag
   siteSubtitle: "Showing the <a href='https://prylabs.net'>💎 Prysm Eth2 Testnet</a>" # Subtitle shown on the main page
-  csrfAuthKey: '0123456789abcdef000000000000000000000000000000000000000000000000'
-  jwtSigningSecret: "0123456789abcdef000000000000000000000000000000000000000000000000"
-  jwtIssuer: "beaconcha.in"
-  jwtValidityInMinutes: 30
   server:
-    host: "localhost" # Address to listen on
+    host: "0.0.0.0" # Address to listen on
     port: "3333" # Port to listen on
   database:
-    user: "<dbuser>"
-    name: "<dbname>"
-    host: "<dbhost>"
-    port: "<dbport>"
-    password: "<dbpassword>"
+    user: "debug"
+    name: "beaconcha"
+    host: "localhost"
+    port: "5432"
+    password: "debug"
   sessionSecret: "<sessionSecret>"
   email:
     smtp:
@@ -47,12 +43,23 @@ frontend:
 indexer:
   enabled: true # Enable or disable the indexing service
   fullIndexOnStartup: false # Perform a one time full db index on startup
-  indexMissingEpochsOnStartup: false # Check for missing epochs and export them after startup
+  indexMissingEpochsOnStartup: true # Check for missing epochs and export them after startup
+  fetchBalances: false
+  disableFullIndex: true
+  oneTimeExport:
+    enabled: true
+    epochs: []
+    startEpoch: 1
+    endEpoch: 4
   node:
-    host: "localhost" # Address of the backend node
-    port: "4000" # port of the backend node
+    host: "eth2-4000-prysm-v2.stage.bloxinfra.com" # Address of the backend node
+    port: "80" # port of the backend node
     type: "prysm" # can be either prysm or lighthouse
-    pageSize: 500 # the amount of entries to fetch per paged rpc call
-  eth1Endpoint: 'https://goerli.infura.io/v3/<api-token>'
-  eth1DepositContractAddress: '0x5cA1e00004366Ac85f492887AAab12d0e6418876'
-  eth1DepositContractFirstBlock: 2523557
+    pageSize: 250 # the amount of entries to fetch per paged rpc call
+  validatorCenter:
+    network: "pyrmont"
+    baseUrl: "http://vc.stage.bloxinfra.com/api"
+    ssvAccounts: true
+  eth1Endpoint: 'http://eth1.stage.bloxinfra.com:80'
+  eth1DepositContractAddress: '0x8c5fecdc472e27bc447696f431e425d02dd46a8c'
+  eth1DepositContractFirstBlock: 3743587

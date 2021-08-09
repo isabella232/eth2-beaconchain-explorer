@@ -50,7 +50,7 @@ func Start(client rpc.Client, httpClient httpRest.Client, accounts types.Account
 	}
 
 	if utils.Config.Indexer.FullIndexOnStartup {
-		logger.Printf("performing one time full db reindex")
+		logger.Printf("starting FullIndexOnStartup...")
 		head, err := client.GetChainHead()
 		if err != nil {
 			logger.Fatal(err)
@@ -89,6 +89,7 @@ func Start(client rpc.Client, httpClient httpRest.Client, accounts types.Account
 	}
 
 	if utils.Config.Indexer.IndexMissingEpochsOnStartup {
+		logger.Printf("starting IndexMissingEpochsOnStartup...")
 		// Add any missing epoch to the export set (might happen if the indexer was stopped for a long period of time)
 		epochs, err := db.GetAllEpochs()
 		if err != nil {
@@ -96,6 +97,7 @@ func Start(client rpc.Client, httpClient httpRest.Client, accounts types.Account
 		}
 
 		if len(epochs) > 0 && epochs[0] != 0 {
+			logger.Printf("IndexMissingEpochsOnStartup start exporting epoch 0")
 			err := ExportEpoch(0, accounts, client)
 			if err != nil {
 				logger.Error(err)
@@ -210,7 +212,7 @@ func Start(client rpc.Client, httpClient httpRest.Client, accounts types.Account
 	}
 
 	newBlockChan := client.GetNewBlockChan()
-
+	logger.Info("start main loop")
 	lastExportedSlot := uint64(0)
 	for {
 		select {
@@ -221,7 +223,7 @@ func Start(client rpc.Client, httpClient httpRest.Client, accounts types.Account
 				logger.Infof("doFullCheck - lastExportedSlot %v of epoch %v", lastExportedSlot, utils.EpochOfSlot(lastExportedSlot))
 				doFullCheck(client, httpClient)
 			} else { // else just save the in epoch block
-				logger.Infof("save block")
+				logger.Info("saving block slot %v", block.Slot)
 				err := db.SaveBlock(block)
 				if err != nil {
 					logger.Errorf("error saving block: %v", err)
