@@ -82,7 +82,7 @@ func NewPrysmClient(endpoint string, httpClient httpRest.Client) (*PrysmClient, 
 
 			accounts, err := httpClient.GetAccounts()
 			if err != nil{
-				logrus.Fatalf("Failed to get accounts prysm client")
+				logrus.Errorf("Failed to get accounts prysm client - %s", err.Error())
 				continue
 			}
 			blocks, err := client.GetBlocksBySlot(uint64(head.HeadSlot), accounts)
@@ -310,34 +310,34 @@ func (pc *PrysmClient) GetEpochData(epoch uint64, accounts types.Accounts) (*typ
 
 	logger.Infof("GetEpochData (%v) %v pubkeys", epoch, len(pubeys))
 
-	var validatorBalances map[uint64]uint64
-	var validatorBalances1d map[uint64]uint64
-	var validatorBalances7d map[uint64]uint64
-	var validatorBalances31d map[uint64]uint64
-	if utils.Config.Indexer.FetchBalances{
-		//// Retrieve the validator balances for the requested epoch
-		//start := time.Now()
-		//validatorBalances, _ := pc.getBalancesForEpoch(int64(epoch), pubeys)
-		//logger.Printf("retrieved data for %v validator balances for epoch %v took %v", len(validatorBalances), epoch, time.Since(start))
-	//
-		//// Retrieve the validator balances for the n-1d epoch
-		//start = time.Now()
-		//epoch1d := int64(epoch) - 225
-		//validatorBalances1d, _ := pc.getBalancesForEpoch(epoch1d, pubeys)
-		//logger.Printf("retrieved data for %v validator balances for 1d epoch %v took %v", len(validatorBalances1d), epoch1d, time.Since(start))
-	//
-		//// Retrieve the validator balances for the n-7d epoch
-		//start = time.Now()
-		//epoch7d := int64(epoch) - 225*7
-		//validatorBalances7d, _ := pc.getBalancesForEpoch(epoch7d, pubeys)
-		//logger.Printf("retrieved data for %v validator balances for 7d epoch %v took %v", len(validatorBalances7d), epoch7d, time.Since(start))
-	//
-		//// Retrieve the validator balances for the n-7d epoch
-		//start = time.Now()
-		//epoch31d := int64(epoch) - 225*31
-		//validatorBalances31d, _ := pc.getBalancesForEpoch(epoch31d, pubeys)
-		//logger.Printf("retrieved data for %v validator balances for 31d epoch %v took %v", len(validatorBalances31d), epoch31d, time.Since(start))
-	}
+	//var validatorBalances map[uint64]uint64
+	//var validatorBalances1d map[uint64]uint64
+	//var validatorBalances7d map[uint64]uint64
+	//var validatorBalances31d map[uint64]uint64
+	//if utils.Config.Indexer.FetchBalances{
+	//	//// Retrieve the validator balances for the requested epoch
+	//	//start := time.Now()
+	//	//validatorBalances, _ := pc.getBalancesForEpoch(int64(epoch), pubeys)
+	//	//logger.Printf("retrieved data for %v validator balances for epoch %v took %v", len(validatorBalances), epoch, time.Since(start))
+	////
+	//	//// Retrieve the validator balances for the n-1d epoch
+	//	//start = time.Now()
+	//	//epoch1d := int64(epoch) - 225
+	//	//validatorBalances1d, _ := pc.getBalancesForEpoch(epoch1d, pubeys)
+	//	//logger.Printf("retrieved data for %v validator balances for 1d epoch %v took %v", len(validatorBalances1d), epoch1d, time.Since(start))
+	////
+	//	//// Retrieve the validator balances for the n-7d epoch
+	//	//start = time.Now()
+	//	//epoch7d := int64(epoch) - 225*7
+	//	//validatorBalances7d, _ := pc.getBalancesForEpoch(epoch7d, pubeys)
+	//	//logger.Printf("retrieved data for %v validator balances for 7d epoch %v took %v", len(validatorBalances7d), epoch7d, time.Since(start))
+	////
+	//	//// Retrieve the validator balances for the n-7d epoch
+	//	//start = time.Now()
+	//	//epoch31d := int64(epoch) - 225*31
+	//	//validatorBalances31d, _ := pc.getBalancesForEpoch(epoch31d, pubeys)
+	//	//logger.Printf("retrieved data for %v validator balances for 31d epoch %v took %v", len(validatorBalances31d), epoch31d, time.Since(start))
+	//}
 
 	data.ValidatorAssignmentes, err = pc.GetEpochAssignments(epoch, accounts)
 	if err != nil {
@@ -423,17 +423,17 @@ func (pc *PrysmClient) GetEpochData(epoch uint64, accounts types.Accounts) (*typ
 		logger.Infof("GetEpochData (%v) got %v validatorsList", epoch, len(validatorResponse.ValidatorList))
 		for _, validator := range validatorResponse.ValidatorList {
 
-			balance, exists := validatorBalances[validator.Index]
-			if !exists {
-				logger.WithField("pubkey", fmt.Sprintf("%x", validator.Validator.PublicKey)).WithField("epoch", epoch).Errorf("error retrieving validator balance")
-				continue
-			}
+			//balance, exists := validatorBalances[validator.Index]
+			//if !exists {
+			//	logger.WithField("pubkey", fmt.Sprintf("%x", validator.Validator.PublicKey)).WithField("epoch", epoch).Errorf("error retrieving validator balance")
+			//	continue
+			//}
 
 			val := &types.Validator{
 				Index:                      validator.Index,
 				PublicKey:                  validator.Validator.PublicKey,
 				WithdrawalCredentials:      validator.Validator.WithdrawalCredentials,
-				Balance:                    balance,
+				//Balance:                    balance,
 				EffectiveBalance:           validator.Validator.EffectiveBalance,
 				Slashed:                    validator.Validator.Slashed,
 				ActivationEligibilityEpoch: uint64(validator.Validator.ActivationEligibilityEpoch),
@@ -442,11 +442,11 @@ func (pc *PrysmClient) GetEpochData(epoch uint64, accounts types.Accounts) (*typ
 				WithdrawableEpoch:          uint64(validator.Validator.WithdrawableEpoch),
 			}
 
-			if exists{
-				val.Balance1d = validatorBalances1d[validator.Index]
-				val.Balance7d = validatorBalances7d[validator.Index]
-				val.Balance31d = validatorBalances31d[validator.Index]
-			}
+			//if exists{
+			//	val.Balance1d = validatorBalances1d[validator.Index]
+			//	val.Balance7d = validatorBalances7d[validator.Index]
+			//	val.Balance31d = validatorBalances31d[validator.Index]
+			//}
 
 			data.Validators = append(data.Validators, val)
 
