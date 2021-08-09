@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"eth2-exporter/db"
 	httpRest "eth2-exporter/http"
+	"eth2-exporter/metrics"
 	"eth2-exporter/rpc"
 	"eth2-exporter/types"
 	"eth2-exporter/utils"
@@ -28,6 +29,15 @@ func Start(client rpc.Client, httpClient httpRest.Client, accounts types.Account
 	go networkLivenessUpdater(client)
 	go eth1DepositsExporter()
 	go genesisDepositsExporter()
+	go checkSubscriptions()
+	go cleanupOldMachineStats()
+	if utils.Config.SSVExporter.Enabled {
+		go ssvExporter()
+	}
+
+	if utils.Config.Indexer.PubKeyTagsExporter.Enabled {
+		go UpdatePubkeyTag()
+	}
 
 	// wait until the beacon-node is available
 	for {
@@ -40,7 +50,7 @@ func Start(client rpc.Client, httpClient httpRest.Client, accounts types.Account
 	}
 
 	if utils.Config.Indexer.FullIndexOnStartup {
-		logger.Printf("performing one time full db reindex")
+		logger.Printf("starting FullIndexOnStartup...")
 		head, err := client.GetChainHead()
 		if err != nil {
 			logger.Fatal(err)
@@ -57,32 +67,58 @@ func Start(client rpc.Client, httpClient httpRest.Client, accounts types.Account
 		}
 	}
 
+	if utils.Config.Indexer.FixCanonOnStartup {
+		logger.Printf("performing one time full canon check")
+		head, err := client.GetChainHead()
+		if err != nil {
+			logger.Fatal(err)
+		}
+
+		for epoch := head.HeadEpoch - 1; epoch >= 0; epoch-- {
+			blocks, err := client.GetBlockStatusByEpoch(epoch)
+			if err != nil {
+				logger.Errorf("error retrieving block status: %v", err)
+				continue
+			}
+			err = db.SetBlockStatus(blocks)
+			if err != nil {
+				logger.Errorf("error saving block status: %v", err)
+				continue
+			}
+		}
+	}
+
 	if utils.Config.Indexer.IndexMissingEpochsOnStartup {
+		logger.Printf("starting IndexMissingEpochsOnStartup...")
 		// Add any missing epoch to the export set (might happen if the indexer was stopped for a long period of time)
 		epochs, err := db.GetAllEpochs()
 		if err != nil {
 			logger.Fatal(err)
 		}
 
-		head, err := client.GetChainHead()
-		if err != nil {
-			logger.Errorf("IndexMissingEpochsOnStartup - error retrieving chain head: %v", err)
+		if len(epochs) > 0 && epochs[0] != 0 {
+			logger.Printf("IndexMissingEpochsOnStartup start exporting epoch 0")
+			err := ExportEpoch(0, accounts, client)
+			if err != nil {
+				logger.Error(err)
+			}
+			logger.Printf("finished export for epoch %v", 0)
+			epochs = append([]uint64{0}, epochs...)
 		}
 
-		if len(epochs) == 0 || epochs[len(epochs) - 1] < head.HeadEpoch - 1 { // export head epoch -1
-			var dbCurrentEpoch = 0
-			if len(epochs) > 0 {
-				dbCurrentEpoch = int(epochs[len(epochs)-1])
+		for i := 0; i < len(epochs)-1; i++ {
+			if epochs[i] != epochs[i+1]-1 && epochs[i] != epochs[i+1] {
+				logger.Println("Epochs between", epochs[i], "and", epochs[i+1], "are missing!")
+
+				for epoch := epochs[i]; epoch <= epochs[i+1]; epoch++ {
+					err := ExportEpoch(epoch, accounts, client)
+					if err != nil {
+						logger.Error(err)
+					}
+					logger.Printf("finished export for epoch %v", epoch)
+				}
 			}
-			logger.Errorf("Head epoch is not synced. db current - %v | head - %v", dbCurrentEpoch, head.HeadEpoch - 1)
-			err := ExportEpoch(head.HeadEpoch - 1, accounts, client)
-			if err != nil {
-				logger.Error("Exporting epoch v% error- v%",  head.HeadEpoch - 1, err)
-			}
-			epochs = append([]uint64{head.HeadEpoch - 1}, epochs...)
 		}
-		logger.Errorf("Finished exporting head - 1 epoch (%v)", head.HeadEpoch - 1)
-		go IndexMissingEpochsOnStartup(client, httpClient, accounts, epochs)
 	}
 
 	if utils.Config.Indexer.CheckAllBlocksOnStartup {
@@ -176,7 +212,7 @@ func Start(client rpc.Client, httpClient httpRest.Client, accounts types.Account
 	}
 
 	newBlockChan := client.GetNewBlockChan()
-
+	logger.Info("start main loop")
 	lastExportedSlot := uint64(0)
 	for {
 		select {
@@ -187,7 +223,7 @@ func Start(client rpc.Client, httpClient httpRest.Client, accounts types.Account
 				logger.Infof("doFullCheck - lastExportedSlot %v of epoch %v", lastExportedSlot, utils.EpochOfSlot(lastExportedSlot))
 				doFullCheck(client, httpClient)
 			} else { // else just save the in epoch block
-				logger.Infof("save block")
+				logger.Info("saving block slot %v", block.Slot)
 				err := db.SaveBlock(block)
 				if err != nil {
 					logger.Errorf("error saving block: %v", err)
@@ -199,34 +235,6 @@ func Start(client rpc.Client, httpClient httpRest.Client, accounts types.Account
 
 	logger.Error("Exporter has done and returned nil!!!")
 	return nil
-}
-
-func IndexMissingEpochsOnStartup(client rpc.Client, httpClient httpRest.Client, accounts types.Accounts, epochs []uint64) {
-	if len(epochs) > 0 && epochs[0] != 0 { // export epoch 0 if missing
-		logger.Printf("IndexMissingEpochsOnStartup - first epoch %v", epochs[0])
-		err := ExportEpoch(0, accounts, client)
-		if err != nil {
-			logger.Error(err)
-		}
-		logger.Printf("finished export for epoch %v", 0)
-		epochs = append([]uint64{0}, epochs...)
-	}
-
-	for i := 0; i < len(epochs)-1; i++ {
-		if epochs[i] != epochs[i+1]-1 && epochs[i] != epochs[i+1] {
-			logger.Println("Epochs between", epochs[i], "and", epochs[i+1], "are missing!")
-
-			for epoch := epochs[i]; epoch <= epochs[i+1]; epoch++ {
-				logger.Println("Fetching epoch - ", epoch)
-				accounts := GetValidators(httpClient)
-				err := ExportEpoch(epoch, accounts, client)
-				if err != nil {
-					logger.Error(err)
-				}
-				logger.Printf("finished export for epoch %v", epoch)
-			}
-		}
-	}
 }
 
 // Will ensure the db is fully in sync with the node
@@ -248,7 +256,7 @@ func doFullCheck(client rpc.Client, httpClient httpRest.Client) {
 
 	// If the network is experiencing finality issues limit the export to the last 10 epochs
 	// Once the network reaches finality again all epochs should be exported again
-	const indexLimit = 2
+	const indexLimit = 1
 	if head.HeadEpoch > indexLimit && head.HeadEpoch-head.FinalizedEpoch > indexLimit {
 		logger.Infof("no finality since %v epochs, limiting lookback to the last %v epochs", head.HeadEpoch-head.FinalizedEpoch, indexLimit)
 		startEpoch = head.HeadEpoch - indexLimit
@@ -335,7 +343,7 @@ func doFullCheck(client rpc.Client, httpClient httpRest.Client) {
 	}
 
 	// Check for epoch gaps
-/*	for i := 0; i < len(epochs)-1; i++ {
+	/*	for i := 0; i < len(epochs)-1; i++ {
 		currentEpoch := epochs[i]
 		nextEpoch := epochs[i+1]
 
@@ -408,32 +416,7 @@ func doFullCheck(client rpc.Client, httpClient httpRest.Client) {
 
 // MarkOrphanedBlocks will mark the orphaned blocks in the database
 func MarkOrphanedBlocks(startEpoch, endEpoch uint64, blocks []*types.MinimalBlock) error {
-	blocksMap := make(map[string]bool)
-
-	for _, block := range blocks {
-		blocksMap[fmt.Sprintf("%x", block.BlockRoot)] = false
-	}
-
-	orphanedBlocks := make([][]byte, 0)
-	parentRoot := ""
-	for i := len(blocks) - 1; i >= 0; i-- {
-		blockRoot := fmt.Sprintf("%x", blocks[i].BlockRoot)
-
-		if i == len(blocks)-1 { // First block is always canon
-			parentRoot = fmt.Sprintf("%x", blocks[i].ParentRoot)
-			blocksMap[blockRoot] = true
-			continue
-		}
-		if parentRoot != blockRoot { // Block is not part of the canonical chain
-			logger.Errorf("block %x at slot %v in epoch %v has been orphaned", blocks[i].BlockRoot, blocks[i].Slot, blocks[i].Epoch)
-			orphanedBlocks = append(orphanedBlocks, blocks[i].BlockRoot)
-			continue
-		}
-		blocksMap[blockRoot] = true
-		parentRoot = fmt.Sprintf("%x", blocks[i].ParentRoot)
-	}
-
-	return db.UpdateCanonicalBlocks(startEpoch, endEpoch, orphanedBlocks)
+	return db.UpdateCanonicalBlocks(startEpoch, endEpoch, blocks)
 }
 
 // GetLastBlocks will get all blocks for a range of epochs
@@ -454,6 +437,7 @@ func GetLastBlocks(startEpoch, endEpoch uint64, accounts types.Accounts, client 
 					Slot:       block.Slot,
 					BlockRoot:  block.BlockRoot,
 					ParentRoot: block.ParentRoot,
+					Canonical:  block.Canonical,
 				})
 			}
 		}
@@ -467,6 +451,9 @@ func GetLastBlocks(startEpoch, endEpoch uint64, accounts types.Accounts, client 
 // ExportEpoch will export an epoch from rpc into the database
 func ExportEpoch(epoch uint64, accounts types.Accounts, client rpc.Client) error {
 	start := time.Now()
+	defer func() {
+		metrics.TaskDuration.WithLabelValues("export_epoch").Observe(time.Since(start).Seconds())
+	}()
 
 	// Check if the partition for the validator_balances and attestation_assignments table for this epoch exists
 	var one int
@@ -489,21 +476,21 @@ func ExportEpoch(epoch uint64, accounts types.Accounts, client rpc.Client) error
 		}
 	}
 
+	startGetEpochData := time.Now()
 	logger.Printf("retrieving data for epoch %v", epoch)
 	data, err := client.GetEpochData(epoch, accounts)
 
 	if err != nil {
 		return fmt.Errorf("error retrieving epoch data: %v", err)
 	}
-
+	metrics.TaskDuration.WithLabelValues("rpc_get_epoch_data").Observe(time.Since(startGetEpochData).Seconds())
 	logger.Printf("data for epoch %v retrieved, took %v", epoch, time.Since(start))
 
-/*	if len(data.Validators) == 0 {
-		return fmt.Errorf("error retrieving epoch data: no validators received for epoch")
-	}
-*/
-	head, err := client.GetChainHead()
-	return db.SaveEpoch(data, head.HeadEpoch)
+	/*	if len(data.Validators) == 0 {
+			return fmt.Errorf("error retrieving epoch data: no validators received for epoch")
+		}
+	*/
+	return db.SaveEpoch(data)
 }
 
 func exportValidatorQueue(client rpc.Client) error {
@@ -547,6 +534,10 @@ func performanceDataUpdater() {
 }
 
 func updateValidatorPerformance() error {
+	start := time.Now()
+	defer func() {
+		metrics.TaskDuration.WithLabelValues("update_validator_performance").Observe(time.Since(start).Seconds())
+	}()
 	tx, err := db.DB.Beginx()
 	if err != nil {
 		return fmt.Errorf("error starting db transaction: %w", err)
@@ -876,7 +867,7 @@ func genesisDepositsExporter() {
 
 func GetValidators(client httpRest.Client) types.Accounts {
 	accounts, err := client.GetAccounts()
-	if err != nil{
+	if err != nil {
 		logger.Errorf("error getting accounts from validator center: %v", err)
 		return types.Accounts{}
 	}

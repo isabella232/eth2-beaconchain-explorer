@@ -1,0 +1,98 @@
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: eth2-beaconchain-explorer-prater
+  namespace: REPLACE_NAMESPACE
+spec:
+  hosts:
+  - "prater-bloxcha.REPLACE_DOMAIN_SUFFIX"
+  gateways:
+  - eth2-beaconchain-explorer-prater
+  http:
+  - route:
+    - destination:
+        host: eth2-beaconchain-explorer-prater-svc
+        port:
+          number: 3333
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: eth2-beaconchain-explorer-prater
+  namespace: REPLACE_NAMESPACE
+spec:
+  selector:
+    istio: ingressgateway-int
+  servers:
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - "prater-bloxcha.REPLACE_DOMAIN_SUFFIX"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: eth2-beaconchain-explorer-prater-svc
+  namespace: REPLACE_NAMESPACE
+  labels:
+    app: eth2-beaconchain-explorer-prater
+spec:
+  type: ClusterIP
+  ports:
+    - port: 3333
+      protocol: TCP
+      targetPort: 3333
+      name: port-3333
+  selector:
+    app: eth2-beaconchain-explorer-prater
+---
+apiVersion: REPLACE_API_VERSION 
+kind: Deployment
+metadata:
+  labels:
+    app: eth2-beaconchain-explorer-prater
+  name: eth2-beaconchain-explorer-prater
+  namespace: REPLACE_NAMESPACE
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: eth2-beaconchain-explorer-prater
+  template:
+    metadata:
+      labels:
+        app: eth2-beaconchain-explorer-prater
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/role
+                operator: In
+                values:
+                - blockchain
+      containers:
+      - name: eth2-beaconchain-explorer-prater
+        image: REPLACE_DOCKER_REPO:REPLACE_IMAGETAG 
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 3333
+          name: port-3333
+        volumeMounts:
+        - name: eth2-beaconchain-explorer-prater-secret
+          mountPath: /app/config.yml
+          subPath: config.yml
+      volumes:
+      - name: eth2-beaconchain-explorer-prater-secret
+        secret:
+          secretName: eth2-beaconchain-explorer-prater-secret
+      tolerations:
+      - effect: NoSchedule
+        key: kubernetes.io/role
+        operator: Exists
