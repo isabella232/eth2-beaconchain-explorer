@@ -81,7 +81,7 @@ func NewPrysmClient(endpoint string, httpClient httpRest.Client) (*PrysmClient, 
 			}
 
 			accounts, err := httpClient.GetAccounts()
-			if err != nil{
+			if err != nil {
 				logrus.Errorf("Failed to get accounts prysm client - %s", err.Error())
 				continue
 			}
@@ -227,7 +227,6 @@ func (pc *PrysmClient) GetEpochAssignments(epoch uint64, accounts types.Accounts
 		AttestorAssignments: make(map[string]uint64),
 	}
 
-
 	var pubeys [][]byte
 	for _, account := range accounts {
 		if account.IsSlashed || account.Status == "exited" || account.ActivationEpoch == 18446744073709551615 || account.ActivationEpoch > epoch { // validator is not active in this epoch
@@ -239,7 +238,7 @@ func (pc *PrysmClient) GetEpochAssignments(epoch uint64, accounts types.Accounts
 		}
 	}
 
-	if pubeys == nil || len(pubeys) == 0{
+	if pubeys == nil || len(pubeys) == 0 {
 		return assignments, nil
 	}
 
@@ -299,7 +298,7 @@ func (pc *PrysmClient) GetEpochData(epoch uint64, accounts types.Accounts) (*typ
 
 	data := &types.EpochData{}
 	data.Epoch = epoch
-	logger.Infof("GetEpochData (%v) %v accounts", epoch, len(accounts))
+	logger.Infof("fetching epoch data (%v) retrieved %v accounts", epoch, len(accounts))
 	pubeys := make([][]byte, len(accounts))
 	for i, account := range accounts {
 		decoded, err := hex.DecodeString(strings.ReplaceAll(account.PublicKey, "0x", ""))
@@ -308,7 +307,7 @@ func (pc *PrysmClient) GetEpochData(epoch uint64, accounts types.Accounts) (*typ
 		}
 	}
 
-	logger.Infof("GetEpochData (%v) %v pubkeys", epoch, len(pubeys))
+	logger.Infof("fetching epoch data (%v) using %v pubkeys", epoch, len(pubeys))
 
 	//var validatorBalances map[uint64]uint64
 	//var validatorBalances1d map[uint64]uint64
@@ -349,6 +348,7 @@ func (pc *PrysmClient) GetEpochData(epoch uint64, accounts types.Accounts) (*typ
 	// Retrieve all blocks for the epoch
 	data.Blocks = make(map[uint64]map[string]*types.Block)
 
+	start := time.Now()
 	for slot := epoch * utils.Config.Chain.SlotsPerEpoch; slot <= (epoch+1)*utils.Config.Chain.SlotsPerEpoch-1; slot++ {
 		blocks, err := pc.GetBlocksBySlot(slot, accounts)
 
@@ -363,7 +363,7 @@ func (pc *PrysmClient) GetEpochData(epoch uint64, accounts types.Accounts) (*typ
 			data.Blocks[block.Slot][fmt.Sprintf("%x", block.BlockRoot)] = block
 		}
 	}
-	logger.Printf("retrieved %v blocks for epoch %v", len(data.Blocks), epoch)
+	logger.Printf("retrieved %v blocks for epoch %v took %v", len(data.Blocks), epoch, time.Since(start))
 
 	// Fill up missed and scheduled blocks
 	for slot, proposer := range data.ValidatorAssignmentes.ProposerAssignments {
@@ -420,7 +420,7 @@ func (pc *PrysmClient) GetEpochData(epoch uint64, accounts types.Accounts) (*typ
 			break
 		}
 
-		logger.Infof("GetEpochData (%v) got %v validatorsList", epoch, len(validatorResponse.ValidatorList))
+		logger.Infof("epoch %v got %v validatorsList", epoch, len(validatorResponse.ValidatorList))
 		for _, validator := range validatorResponse.ValidatorList {
 
 			//balance, exists := validatorBalances[validator.Index]
@@ -430,9 +430,9 @@ func (pc *PrysmClient) GetEpochData(epoch uint64, accounts types.Accounts) (*typ
 			//}
 
 			val := &types.Validator{
-				Index:                      validator.Index,
-				PublicKey:                  validator.Validator.PublicKey,
-				WithdrawalCredentials:      validator.Validator.WithdrawalCredentials,
+				Index:                 validator.Index,
+				PublicKey:             validator.Validator.PublicKey,
+				WithdrawalCredentials: validator.Validator.WithdrawalCredentials,
 				//Balance:                    balance,
 				EffectiveBalance:           validator.Validator.EffectiveBalance,
 				Slashed:                    validator.Validator.Slashed,
@@ -456,13 +456,14 @@ func (pc *PrysmClient) GetEpochData(epoch uint64, accounts types.Accounts) (*typ
 			break
 		}
 	}
-	logger.Printf("retrieved data for %v validators for epoch %v", len(data.Validators), epoch)
 
+	start = time.Now()
+	logger.Printf("fetching validators participation in epoch %v", epoch)
 	data.EpochParticipationStats, err = pc.GetValidatorParticipation(epoch)
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving epoch participation statistics for epoch %v: %v", epoch, err)
 	}
-
+	logger.Printf("retrieved validators participation for epoch %v took %v", epoch, time.Since(start))
 	return data, nil
 }
 
