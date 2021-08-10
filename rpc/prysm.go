@@ -545,7 +545,7 @@ func (pc *PrysmClient) GetBlocksBySlot(slot uint64, accounts types.Accounts) ([]
 			return nil, err
 		}
 
-		logger.Infof("parseRpcBlock done")
+		logger.Infof("parseRpcBlock done for block slot num %v", block.Block.Block.Slot)
 		blocks = append(blocks, b)
 	}
 
