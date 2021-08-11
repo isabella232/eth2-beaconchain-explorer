@@ -286,7 +286,7 @@ func (pc *PrysmClient) GetEpochAssignments(epoch uint64, accounts types.Accounts
 		}
 	}
 
-	if len(assignments.AttestorAssignments) > 0 && len(assignments.ProposerAssignments) > 0 {
+	if len(assignments.AttestorAssignments) > 0 || len(assignments.ProposerAssignments) > 0 { // specific for blox needs to be "or"
 		evicted := pc.assignmentsCache.Add(epoch, assignments)
 		if evicted{
 			logger.Infof("assignments cache epoch %v got evicted!", epoch)
