@@ -56,7 +56,10 @@ func NewPrysmClient(endpoint string, httpClient httpRest.Client) (*PrysmClient, 
 		assignmentsCacheMux: &sync.Mutex{},
 		newBlockChan:        make(chan *types.Block, 1000),
 	}
-	client.assignmentsCache, _ = lru.New(10)
+	client.assignmentsCache, err = lru.New(200000)
+	if err != nil{
+		logger.Errorf("failed to create assignmentsCache - %s", err.Error())
+	}
 
 	streamChainHeadClient, err := chainClient.StreamChainHead(context.Background(), &ptypes.Empty{})
 	if err != nil {
@@ -217,8 +220,8 @@ func (pc *PrysmClient) GetEpochAssignments(epoch uint64, accounts types.Accounts
 	var err error
 
 	cachedValue, found := pc.assignmentsCache.Get(epoch)
+	logger.Infof("epoch %v assignements cache found=%b with value", epoch, found)
 	if found {
-		logger.Infof("epoch %v assignements cache exist", epoch)
 		return cachedValue.(*types.EpochAssignments), nil
 	}
 
@@ -283,7 +286,10 @@ func (pc *PrysmClient) GetEpochAssignments(epoch uint64, accounts types.Accounts
 	}
 
 	if len(assignments.AttestorAssignments) > 0 && len(assignments.ProposerAssignments) > 0 {
-		pc.assignmentsCache.Add(epoch, assignments)
+		evicted := pc.assignmentsCache.Add(epoch, assignments)
+		if evicted{
+			logger.Infof("assignements cache epoch %v got evicted!!!!", epoch)
+		}
 	}
 
 	logger.Infof("cached assignements for epoch %v took %v", epoch, time.Since(start))
