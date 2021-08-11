@@ -38,9 +38,7 @@ func NewPrysmClient(endpoint string, httpClient httpRest.Client) (*PrysmClient, 
 		// Maximum receive value 128 MB
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(128 * 1024 * 1024)),
 	}
-	ctx, _ := context.WithTimeout(context.Background(), time.Minute * 5)
-	conn, err := grpc.DialContext(ctx, endpoint, dialOpts...)
-
+	conn, err := grpc.Dial(endpoint, dialOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -219,7 +217,7 @@ func (pc *PrysmClient) GetEpochAssignments(epoch uint64, accounts types.Accounts
 	defer pc.assignmentsCacheMux.Unlock()
 
 	var err error
-
+	ctx, _ := context.WithTimeout(context.Background(), time.Second * 5)
 	cachedValue, found := pc.assignmentsCache.Get(epoch)
 	if found {
 		return cachedValue.(*types.EpochAssignments), nil
@@ -258,7 +256,7 @@ func (pc *PrysmClient) GetEpochAssignments(epoch uint64, accounts types.Accounts
 		AssignmentRequestStart := time.Now()
 		validatorAssignmentRequest.PageToken = validatorAssignmentResponse.NextPageToken
 		logger.Printf("sending ListValidatorAssignments request for the %v", len(validatorAssignmentes))
-		validatorAssignmentResponse, err = pc.client.ListValidatorAssignments(context.Background(), validatorAssignmentRequest)
+		validatorAssignmentResponse, err = pc.client.ListValidatorAssignments(ctx, validatorAssignmentRequest)
 		if err != nil {
 			fmt.Printf("ListValidatorAssignments error!! - %s\n", err.Error())
 			return nil, fmt.Errorf("error retrieving validator assignment response for caching: %v", err)
