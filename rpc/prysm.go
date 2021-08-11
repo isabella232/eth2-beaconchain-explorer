@@ -38,7 +38,8 @@ func NewPrysmClient(endpoint string, httpClient httpRest.Client) (*PrysmClient, 
 		// Maximum receive value 128 MB
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(128 * 1024 * 1024)),
 	}
-	conn, err := grpc.Dial(endpoint, dialOpts...)
+	ctx, _ := context.WithTimeout(context.Background(), time.Minute * 5)
+	conn, err := grpc.DialContext(ctx, endpoint, dialOpts...)
 
 	if err != nil {
 		return nil, err
