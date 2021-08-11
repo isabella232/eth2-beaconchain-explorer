@@ -38,7 +38,8 @@ func NewPrysmClient(endpoint string, httpClient httpRest.Client) (*PrysmClient, 
 		// Maximum receive value 128 MB
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(128 * 1024 * 1024)),
 	}
-	conn, err := grpc.Dial(endpoint, dialOpts...)
+	ctx, _ := context.WithTimeout(context.Background(), time.Minute * 5)
+	conn, err := grpc.DialContext(ctx, endpoint, dialOpts...)
 
 	if err != nil {
 		return nil, err
@@ -55,7 +56,11 @@ func NewPrysmClient(endpoint string, httpClient httpRest.Client) (*PrysmClient, 
 		assignmentsCacheMux: &sync.Mutex{},
 		newBlockChan:        make(chan *types.Block, 1000),
 	}
-	client.assignmentsCache, _ = lru.New(10)
+	client.assignmentsCache, err = lru.New(10)
+
+	if err != nil{
+		logger.Errorf("failed to create assignmentsCache - %s", err.Error())
+	}
 
 	streamChainHeadClient, err := chainClient.StreamChainHead(context.Background(), &ptypes.Empty{})
 	if err != nil {
@@ -217,11 +222,10 @@ func (pc *PrysmClient) GetEpochAssignments(epoch uint64, accounts types.Accounts
 
 	cachedValue, found := pc.assignmentsCache.Get(epoch)
 	if found {
-		logger.Infof("epoch %v assignements cache exist", epoch)
 		return cachedValue.(*types.EpochAssignments), nil
 	}
 
-	logger.Infof("caching assignements for epoch %v", epoch)
+	logger.Infof("caching assignments for epoch %v", epoch)
 	start := time.Now()
 	assignments := &types.EpochAssignments{
 		ProposerAssignments: make(map[uint64]uint64),
@@ -281,11 +285,14 @@ func (pc *PrysmClient) GetEpochAssignments(epoch uint64, accounts types.Accounts
 		}
 	}
 
-	if len(assignments.AttestorAssignments) > 0 && len(assignments.ProposerAssignments) > 0 {
-		pc.assignmentsCache.Add(epoch, assignments)
+	if len(assignments.AttestorAssignments) > 0 || len(assignments.ProposerAssignments) > 0 { // specific for blox needs to be "or"
+		evicted := pc.assignmentsCache.Add(epoch, assignments)
+		if evicted{
+			logger.Infof("assignments cache epoch %v got evicted!", epoch)
+		}
 	}
 
-	logger.Infof("cached assignements for epoch %v took %v", epoch, time.Since(start))
+	logger.Infof("cached assignments for epoch %v took %v", epoch, time.Since(start))
 	return assignments, nil
 }
 
@@ -540,13 +547,14 @@ func (pc *PrysmClient) GetBlocksBySlot(slot uint64, accounts types.Accounts) ([]
 			}
 		}
 
+		start := time.Now()
 		logger.Infof("starting parseRpcBlock... for block slot num %v", block.Block.Block.Slot)
 		b, err := pc.parseRpcBlock(block, accounts)
 		if err != nil {
 			return nil, err
 		}
 
-		logger.Infof("parseRpcBlock done for block slot num %v", block.Block.Block.Slot)
+		logger.Infof("parseRpcBlock done for block slot num %v took %v", block.Block.Block.Slot, time.Since(start))
 		blocks = append(blocks, b)
 	}
 
