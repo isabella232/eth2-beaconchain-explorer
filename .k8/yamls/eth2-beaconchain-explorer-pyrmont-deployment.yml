@@ -88,10 +88,28 @@ spec:
         - name: eth2-beaconchain-explorer-pyrmont-secret
           mountPath: /app/config.yml
           subPath: config.yml
+      - name: ubuntu
+        image: REPLACE_HEALTH_IMAGE
+        imagePullPolicy: Always
+        args: [bash, -c, sleep infinity]
+        volumeMounts:
+        - name: bloxcha-pyrmont-health-check-cm
+          mountPath: /root/bloxcha-status.sh
+          subPath: bloxcha-status.sh
+        livenessProbe:
+          exec:
+            command:
+            - /bin/bash
+            - /root/bloxcha-status.sh
+          initialDelaySeconds: 120
+          periodSeconds: 600            
       volumes:
       - name: eth2-beaconchain-explorer-pyrmont-secret
         secret:
           secretName: eth2-beaconchain-explorer-pyrmont-secret
+      - name: bloxcha-pyrmont-health-check-cm
+        configMap:
+          name: bloxcha-pyrmont-health-check-cm
       tolerations:
       - effect: NoSchedule
         key: kubernetes.io/role
