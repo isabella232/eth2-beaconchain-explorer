@@ -56,7 +56,8 @@ func NewPrysmClient(endpoint string, httpClient httpRest.Client) (*PrysmClient, 
 		assignmentsCacheMux: &sync.Mutex{},
 		newBlockChan:        make(chan *types.Block, 1000),
 	}
-	client.assignmentsCache, err = lru.New(200000)
+	client.assignmentsCache, err = lru.New(10)
+
 	if err != nil{
 		logger.Errorf("failed to create assignmentsCache - %s", err.Error())
 	}
@@ -220,12 +221,12 @@ func (pc *PrysmClient) GetEpochAssignments(epoch uint64, accounts types.Accounts
 	var err error
 
 	cachedValue, found := pc.assignmentsCache.Get(epoch)
-	logger.Infof("epoch %v assignements cache found=%b with value", epoch, found)
 	if found {
+		logger.Infof("epoch %v assignments cache using founded cache", epoch)
 		return cachedValue.(*types.EpochAssignments), nil
 	}
 
-	logger.Infof("caching assignements for epoch %v", epoch)
+	logger.Infof("caching assignments for epoch %v", epoch)
 	start := time.Now()
 	assignments := &types.EpochAssignments{
 		ProposerAssignments: make(map[uint64]uint64),
@@ -288,11 +289,11 @@ func (pc *PrysmClient) GetEpochAssignments(epoch uint64, accounts types.Accounts
 	if len(assignments.AttestorAssignments) > 0 && len(assignments.ProposerAssignments) > 0 {
 		evicted := pc.assignmentsCache.Add(epoch, assignments)
 		if evicted{
-			logger.Infof("assignements cache epoch %v got evicted!!!!", epoch)
+			logger.Infof("assignments cache epoch %v got evicted!", epoch)
 		}
 	}
 
-	logger.Infof("cached assignements for epoch %v took %v", epoch, time.Since(start))
+	logger.Infof("cached assignments for epoch %v took %v", epoch, time.Since(start))
 	return assignments, nil
 }
 
