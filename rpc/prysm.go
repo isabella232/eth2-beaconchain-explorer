@@ -222,7 +222,6 @@ func (pc *PrysmClient) GetEpochAssignments(epoch uint64, accounts types.Accounts
 
 	cachedValue, found := pc.assignmentsCache.Get(epoch)
 	if found {
-		logger.Infof("epoch %v assignments cache using founded cache", epoch)
 		return cachedValue.(*types.EpochAssignments), nil
 	}
 
@@ -548,13 +547,14 @@ func (pc *PrysmClient) GetBlocksBySlot(slot uint64, accounts types.Accounts) ([]
 			}
 		}
 
+		start := time.Now()
 		logger.Infof("starting parseRpcBlock... for block slot num %v", block.Block.Block.Slot)
 		b, err := pc.parseRpcBlock(block, accounts)
 		if err != nil {
 			return nil, err
 		}
 
-		logger.Infof("parseRpcBlock done for block slot num %v", block.Block.Block.Slot)
+		logger.Infof("parseRpcBlock done for block slot num %v took %v", block.Block.Block.Slot, time.Since(start))
 		blocks = append(blocks, b)
 	}
 
