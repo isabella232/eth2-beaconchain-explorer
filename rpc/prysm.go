@@ -518,7 +518,7 @@ func (pc *PrysmClient) getBalancesForEpoch(epoch int64, pubeys [][]byte) (map[ui
 // GetBlocksBySlot will get blocks by slot from a Prysm client
 func (pc *PrysmClient) GetBlocksBySlot(slot uint64, accounts types.Accounts) ([]*types.Block, error) {
 	logger.Infof("retrieving block at slot %v", slot)
-
+	ctx, _ := context.WithTimeout(context.Background(), time.Minute*1)
 	blocks := make([]*types.Block, 0)
 
 	start := time.Now()
@@ -526,7 +526,7 @@ func (pc *PrysmClient) GetBlocksBySlot(slot uint64, accounts types.Accounts) ([]
 	if slot == 0 {
 		blocksRequest.QueryFilter = &ethpb.ListBlocksRequest_Genesis{Genesis: true}
 	}
-	blocksResponse, err := pc.client.ListBlocks(context.Background(), blocksRequest)
+	blocksResponse, err := pc.client.ListBlocks(ctx, blocksRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -564,12 +564,12 @@ func (pc *PrysmClient) GetBlocksBySlot(slot uint64, accounts types.Accounts) ([]
 // GetBlockStatusBySlot will get blocks by slot from a Prysm client
 func (pc *PrysmClient) GetBlockStatusByEpoch(epoch uint64) ([]*types.CanonBlock, error) {
 	logger.Infof("retrieving blocks for epoch %v", epoch)
-
+	ctx, _ := context.WithTimeout(context.Background(), time.Minute*1)
 	blocks := make([]*types.CanonBlock, 0)
 
 	blocksRequest := &ethpb.ListBlocksRequest{PageSize: utils.Config.Indexer.Node.PageSize, QueryFilter: &ethpb.ListBlocksRequest_Epoch{Epoch: eth2types.Epoch(epoch)}}
 
-	blocksResponse, err := pc.client.ListBlocks(context.Background(), blocksRequest)
+	blocksResponse, err := pc.client.ListBlocks(ctx, blocksRequest)
 	if err != nil {
 		return nil, err
 	}
