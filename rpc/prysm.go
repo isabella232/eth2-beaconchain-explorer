@@ -56,7 +56,7 @@ func NewPrysmClient(endpoint string, httpClient httpRest.Client) (*PrysmClient, 
 	}
 	client.assignmentsCache, err = lru.New(10)
 
-	if err != nil{
+	if err != nil {
 		logger.Errorf("failed to create assignmentsCache - %s", err.Error())
 	}
 
@@ -217,7 +217,7 @@ func (pc *PrysmClient) GetEpochAssignments(epoch uint64, accounts types.Accounts
 	defer pc.assignmentsCacheMux.Unlock()
 
 	var err error
-	ctx, _ := context.WithTimeout(context.Background(), time.Second * 5)
+	ctx, _ := context.WithTimeout(context.Background(), time.Minute*2)
 	cachedValue, found := pc.assignmentsCache.Get(epoch)
 	if found {
 		return cachedValue.(*types.EpochAssignments), nil
@@ -248,26 +248,28 @@ func (pc *PrysmClient) GetEpochAssignments(epoch uint64, accounts types.Accounts
 	// Retrieve the validator assignments for the epoch
 	validatorAssignmentes := make([]*ethpb.ValidatorAssignments_CommitteeAssignment, 0)
 	validatorAssignmentResponse := &ethpb.ValidatorAssignments{}
-	validatorAssignmentRequest := &ethpb.ListValidatorAssignmentsRequest{PageToken: validatorAssignmentResponse.NextPageToken, PageSize: utils.Config.Indexer.Node.PageSize, PublicKeys: pubeys, QueryFilter: &ethpb.ListValidatorAssignmentsRequest_Epoch{Epoch: eth2types.Epoch(epoch)}}
+	validatorAssignmentRequest := &ethpb.ListValidatorAssignmentsRequest{PublicKeys: pubeys, QueryFilter: &ethpb.ListValidatorAssignmentsRequest_Epoch{Epoch: eth2types.Epoch(epoch)}}
 	if epoch == 0 {
 		validatorAssignmentRequest.QueryFilter = &ethpb.ListValidatorAssignmentsRequest_Genesis{Genesis: true}
 	}
+	retryCount := 0
 	for {
 		AssignmentRequestStart := time.Now()
-		validatorAssignmentRequest.PageToken = validatorAssignmentResponse.NextPageToken
-		logger.Printf("sending ListValidatorAssignments request for the %v", len(validatorAssignmentes))
+		logger.Printf("sending ListValidatorAssignments request")
 		validatorAssignmentResponse, err = pc.client.ListValidatorAssignments(ctx, validatorAssignmentRequest)
 		if err != nil {
-			fmt.Printf("ListValidatorAssignments error!! - %s\n", err.Error())
-			return nil, fmt.Errorf("error retrieving validator assignment response for caching: %v", err)
+			fmt.Printf("ListValidatorAssignments error - %s\n", err.Error())
+			if retryCount == 5 {
+				return nil, fmt.Errorf("error retrieving validator assignment response for caching: %v", err)
+			}
+			retryCount++
+			logger.Printf("epoch %v ListValidatorAssignments failed, retries count %v", epoch, retryCount)
+			continue
 		}
 
 		validatorAssignmentes = append(validatorAssignmentes, validatorAssignmentResponse.Assignments...)
 		logger.Printf("retrieved %v assignments of %v for epoch %v took %v", len(validatorAssignmentes), validatorAssignmentResponse.TotalSize, epoch, time.Since(AssignmentRequestStart))
-
-		if validatorAssignmentResponse.NextPageToken == "" || validatorAssignmentResponse.TotalSize == 0 || len(validatorAssignmentes) == int(validatorAssignmentResponse.TotalSize) {
-			break
-		}
+		break
 	}
 
 	// Extract the proposer & attestation assignments from the response and cache them for later use
@@ -285,7 +287,7 @@ func (pc *PrysmClient) GetEpochAssignments(epoch uint64, accounts types.Accounts
 
 	if len(assignments.AttestorAssignments) > 0 || len(assignments.ProposerAssignments) > 0 { // specific for blox needs to be "or"
 		evicted := pc.assignmentsCache.Add(epoch, assignments)
-		if evicted{
+		if evicted {
 			logger.Infof("assignments cache epoch %v got evicted!", epoch)
 		}
 	}
