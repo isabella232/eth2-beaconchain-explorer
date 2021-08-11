@@ -217,6 +217,7 @@ func (pc *PrysmClient) GetEpochAssignments(epoch uint64, accounts types.Accounts
 
 	cachedValue, found := pc.assignmentsCache.Get(epoch)
 	if found {
+		logger.Infof("epoch %v assignements cache exist", epoch)
 		return cachedValue.(*types.EpochAssignments), nil
 	}
 
@@ -280,7 +281,7 @@ func (pc *PrysmClient) GetEpochAssignments(epoch uint64, accounts types.Accounts
 		}
 	}
 
-	if len(assignments.AttestorAssignments) > 0 || len(assignments.ProposerAssignments) > 0 {
+	if len(assignments.AttestorAssignments) > 0 && len(assignments.ProposerAssignments) > 0 {
 		pc.assignmentsCache.Add(epoch, assignments)
 	}
 
