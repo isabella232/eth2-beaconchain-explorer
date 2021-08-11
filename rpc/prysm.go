@@ -217,7 +217,7 @@ func (pc *PrysmClient) GetEpochAssignments(epoch uint64, accounts types.Accounts
 	defer pc.assignmentsCacheMux.Unlock()
 
 	var err error
-	ctx, _ := context.WithTimeout(context.Background(), time.Minute*2)
+	ctx, _ := context.WithTimeout(context.Background(), time.Minute*1)
 	cachedValue, found := pc.assignmentsCache.Get(epoch)
 	if found {
 		return cachedValue.(*types.EpochAssignments), nil
@@ -259,8 +259,8 @@ func (pc *PrysmClient) GetEpochAssignments(epoch uint64, accounts types.Accounts
 		validatorAssignmentResponse, err = pc.client.ListValidatorAssignments(ctx, validatorAssignmentRequest)
 		if err != nil {
 			fmt.Printf("ListValidatorAssignments error - %s\n", err.Error())
-			if retryCount == 5 {
-				return nil, fmt.Errorf("error retrieving validator assignment response for caching: %v", err)
+			if retryCount == 2 {
+				return nil, fmt.Errorf("error retrieving validator assignment response from node: %v", err)
 			}
 			retryCount++
 			logger.Printf("epoch %v ListValidatorAssignments failed, retries count %v", epoch, retryCount)
