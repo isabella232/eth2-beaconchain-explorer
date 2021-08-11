@@ -340,21 +340,21 @@ func doFullCheck(client rpc.Client, httpClient httpRest.Client) {
 				epochsToExport[i] = true
 			}
 		}
+
+		// Check for epoch gaps
+		//for i := 0; i < len(epochs)-1; i++ {
+		//	currentEpoch := epochs[i]
+		//	nextEpoch := epochs[i+1]
+		//
+		//	if currentEpoch != nextEpoch-1 {
+		//		logger.Infof("epoch gap found between epochs %v and %v", currentEpoch, nextEpoch)
+		//		for j := currentEpoch + 1; j <= nextEpoch-1; j++ {
+		//			logger.Printf("queuing epoch %v for export", j)
+		//			epochsToExport[j] = true
+		//		}
+		//	}
+		//}
 	}
-
-	// Check for epoch gaps
-	/*	for i := 0; i < len(epochs)-1; i++ {
-		currentEpoch := epochs[i]
-		nextEpoch := epochs[i+1]
-
-		if currentEpoch != nextEpoch-1 {
-			logger.Infof("epoch gap found between epochs %v and %v", currentEpoch, nextEpoch)
-			for j := currentEpoch + 1; j <= nextEpoch-1; j++ {
-				logger.Printf("queuing epoch %v for export", j)
-				epochsToExport[j] = true
-			}
-		}
-	}*/
 
 	logger.Printf("exporting %v epochs.", len(epochsToExport))
 
@@ -516,7 +516,7 @@ func updateEpochStatus(client rpc.Client, startEpoch, endEpoch uint64) error {
 			}
 		}
 	}
-	return nil
+	return db.UpdateEpochFinalization()
 }
 
 func performanceDataUpdater() {
