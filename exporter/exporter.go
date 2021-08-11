@@ -342,18 +342,18 @@ func doFullCheck(client rpc.Client, httpClient httpRest.Client) {
 		}
 
 		// Check for epoch gaps
-		for i := 0; i < len(epochs)-1; i++ {
-			currentEpoch := epochs[i]
-			nextEpoch := epochs[i+1]
-
-			if currentEpoch != nextEpoch-1 {
-				logger.Infof("epoch gap found between epochs %v and %v", currentEpoch, nextEpoch)
-				for j := currentEpoch + 1; j <= nextEpoch-1; j++ {
-					logger.Printf("queuing epoch %v for export", j)
-					epochsToExport[j] = true
-				}
-			}
-		}
+		//for i := 0; i < len(epochs)-1; i++ {
+		//	currentEpoch := epochs[i]
+		//	nextEpoch := epochs[i+1]
+		//
+		//	if currentEpoch != nextEpoch-1 {
+		//		logger.Infof("epoch gap found between epochs %v and %v", currentEpoch, nextEpoch)
+		//		for j := currentEpoch + 1; j <= nextEpoch-1; j++ {
+		//			logger.Printf("queuing epoch %v for export", j)
+		//			epochsToExport[j] = true
+		//		}
+		//	}
+		//}
 	}
 
 	logger.Printf("exporting %v epochs.", len(epochsToExport))
