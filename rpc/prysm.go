@@ -411,23 +411,19 @@ func (pc *PrysmClient) GetEpochData(epoch uint64, accounts types.Accounts) (*typ
 	}
 
 	// Retrieve the validator set for the epoch
+	ctx, _ := context.WithTimeout(context.Background(), time.Second*30)
 	data.Validators = make([]*types.Validator, 0)
 	validatorResponse := &ethpb.Validators{}
-	validatorRequest := &ethpb.ListValidatorsRequest{PublicKeys: pubeys, PageToken: validatorResponse.NextPageToken, PageSize: utils.Config.Indexer.Node.PageSize, QueryFilter: &ethpb.ListValidatorsRequest_Epoch{Epoch: eth2types.Epoch(epoch)}}
+	validatorRequest := &ethpb.ListValidatorsRequest{PublicKeys: pubeys, QueryFilter: &ethpb.ListValidatorsRequest_Epoch{Epoch: eth2types.Epoch(epoch)}}
 	if epoch == 0 {
 		validatorRequest.QueryFilter = &ethpb.ListValidatorsRequest_Genesis{Genesis: true}
 	}
-	for {
-		validatorRequest.PageToken = validatorResponse.NextPageToken
-		validatorResponse, err = pc.client.ListValidators(context.Background(), validatorRequest)
-		if err != nil {
-			logger.Errorf("error retrieving validator response: %v", err)
-			break
-		}
-		if validatorResponse.TotalSize == 0 {
-			break
-		}
-
+	validatorResponse, err = pc.client.ListValidators(ctx, validatorRequest)
+	if err != nil {
+		logger.Errorf("error retrieving validator response for epoch %v: %v", epoch, err)
+	} else if validatorResponse.TotalSize == 0 {
+		logger.Errorf("epoch %v retrieved 0 validators", epoch)
+	} else {
 		logger.Infof("epoch %v got %v validatorsList", epoch, len(validatorResponse.ValidatorList))
 		for _, validator := range validatorResponse.ValidatorList {
 
@@ -457,11 +453,6 @@ func (pc *PrysmClient) GetEpochData(epoch uint64, accounts types.Accounts) (*typ
 			//}
 
 			data.Validators = append(data.Validators, val)
-
-		}
-
-		if validatorResponse.NextPageToken == "" {
-			break
 		}
 	}
 
@@ -735,11 +726,12 @@ func (pc *PrysmClient) parseRpcBlock(block *ethpb.BeaconBlockContainer, accounts
 
 // GetValidatorParticipation will get the validator participation from Prysm client
 func (pc *PrysmClient) GetValidatorParticipation(epoch uint64) (*types.ValidatorParticipation, error) {
+	ctx, _ := context.WithTimeout(context.Background(), time.Second*30)
 	validatorParticipationRequest := &ethpb.GetValidatorParticipationRequest{QueryFilter: &ethpb.GetValidatorParticipationRequest_Epoch{Epoch: eth2types.Epoch(epoch)}}
 	if epoch == 0 {
 		validatorParticipationRequest.QueryFilter = &ethpb.GetValidatorParticipationRequest_Genesis{Genesis: true}
 	}
-	epochParticipationStatistics, err := pc.client.GetValidatorParticipation(context.Background(), validatorParticipationRequest)
+	epochParticipationStatistics, err := pc.client.GetValidatorParticipation(ctx, validatorParticipationRequest)
 	if err != nil {
 		logger.Printf("error retrieving epoch participation statistics: %v", err)
 		return &types.ValidatorParticipation{
