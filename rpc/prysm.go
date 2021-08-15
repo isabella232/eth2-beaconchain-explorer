@@ -255,7 +255,7 @@ func (pc *PrysmClient) GetEpochAssignments(epoch uint64, accounts types.Accounts
 	retryCount := 0
 	for {
 		AssignmentRequestStart := time.Now()
-		logger.Printf("sending ListValidatorAssignments request")
+		logger.Printf("sending ListValidatorAssignments request for %v validators", len(pubeys))
 		validatorAssignmentResponse, err = pc.client.ListValidatorAssignments(ctx, validatorAssignmentRequest)
 		if err != nil {
 			fmt.Printf("ListValidatorAssignments error - %s\n", err.Error())
