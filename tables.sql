@@ -244,25 +244,28 @@ create table epochs
 drop table if exists blocks;
 create table blocks
 (
-    epoch                  int   not null,
-    slot                   int   not null,
-    blockroot              bytea not null,
-    parentroot             bytea not null,
-    stateroot              bytea not null,
-    signature              bytea not null,
-    randaoreveal           bytea,
-    graffiti               bytea,
-    graffiti_text          text  null,
-    eth1data_depositroot   bytea,
-    eth1data_depositcount  int   not null,
-    eth1data_blockhash     bytea,
-    proposerslashingscount int   not null,
-    attesterslashingscount int   not null,
-    attestationscount      int   not null,
-    depositscount          int   not null,
-    voluntaryexitscount    int   not null,
-    proposer               int   not null,
-    status                 text  not null, /* Can be 0 = scheduled, 1 proposed, 2 missed, 3 orphaned */
+    epoch                       int   not null,
+    slot                        int   not null,
+    blockroot                   bytea not null,
+    parentroot                  bytea not null,
+    stateroot                   bytea not null,
+    signature                   bytea not null,
+    randaoreveal                bytea,
+    graffiti                    bytea,
+    graffiti_text               text  null,
+    eth1data_depositroot        bytea,
+    eth1data_depositcount       int   not null,
+    eth1data_blockhash          bytea,
+    syncaggregate_bits          bytea,
+    syncaggregate_signature     bytea,
+    syncaggregate_participation float not null default 0,
+    proposerslashingscount      int   not null,
+    attesterslashingscount      int   not null,
+    attestationscount           int   not null,
+    depositscount               int   not null,
+    voluntaryexitscount         int   not null,
+    proposer                    int   not null,
+    status                      text  not null, /* Can be 0 = scheduled, 1 proposed, 2 missed, 3 orphaned */
     primary key (slot, blockroot)
 );
 create index idx_blocks_proposer on blocks (proposer);
@@ -431,6 +434,7 @@ create table users_stripe_subscriptions
     price_id        character varying(256)        not null,
     active          bool not null default 'f',
     payload         json                          not null,
+    purchase_group    character varying(30)         not null default 'api',
     primary key (customer_id, subscription_id, price_id)
 );
 
@@ -450,7 +454,8 @@ create table users_app_subscriptions
     expires_at      timestamp without time zone   not null,
     reject_reason   character varying(50),
     receipt         character varying(99999)       not null,
-    receipt_hash    character varying(1024)        not null unique
+    receipt_hash    character varying(1024)        not null unique,
+    subscription_id character varying(256)         default ''
 );
 create index idx_user_app_subscriptions on users_app_subscriptions (user_id);
 
@@ -697,14 +702,14 @@ create table stake_pools_stats
 drop table if exists price;
 create table price
 (
-    ts     timestamp without time zone not null,
-    eur numeric(20,10)                not null,
-    usd numeric(20,10)                not null,
-    rub numeric(20,10)                not null,
-    cny numeric(20,10)                not null,
-    cad numeric(20,10)                not null,
-    jpy numeric(20,10)                not null,
-    gbp numeric(20,10)                not null,
+    ts  timestamp without time zone not null,
+    eur numeric(20,10)              not null,
+    usd numeric(20,10)              not null,
+    rub numeric(20,10)              not null,
+    cny numeric(20,10)              not null,
+    cad numeric(20,10)              not null,
+    jpy numeric(20,10)              not null,
+    gbp numeric(20,10)              not null,
     primary key (ts)
 );
 
@@ -725,4 +730,17 @@ CREATE TABLE stats_sharing (
 	share           bool             not null,
 	user_id 		 	bigint	 	 		not null,
     foreign key(user_id) references users(id)
+);
+
+drop table if exists finality_checkpoints;
+create table finality_checkpoints (
+    head_epoch               int   not null,
+    head_root                bytea not null,
+    current_justified_epoch  int   not null,
+    current_justified_root   bytea not null,
+    previous_justified_epoch int   not null,
+    previous_justified_root  bytea not null,
+    finalized_epoch          int   not null,
+    finalized_root           bytea not null,
+    primary key (head_epoch, head_root)
 );

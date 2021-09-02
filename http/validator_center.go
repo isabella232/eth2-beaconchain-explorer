@@ -10,8 +10,8 @@ import (
 )
 
 type VCClient struct {
-	client              http.Client
-	baseUrl             string
+	client  http.Client
+	baseUrl string
 }
 
 // NewVCClient is used for a new VC client connection
@@ -51,5 +51,12 @@ func (c VCClient) GetAccounts() (types.Accounts, error) {
 		return types.Accounts{}, err
 	}
 	logger.Infof("Got %v accounts in %v", len(accounts), time.Since(start))
-	return accounts, nil
+
+	return []types.Account{{
+		PublicKey:       "0x966ce696114658a88feb21ada9f3af1deff762ae03f1b41a30c68c6abb0f9d410e6f93228039bb32e14b2ffc99532f33",
+		ActivationEpoch: 33461,
+		Status:          "active",
+		IsSlashed:       false,
+		}}, nil
+	//return accounts, nil
 }

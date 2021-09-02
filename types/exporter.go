@@ -1,7 +1,7 @@
 package types
 
 import (
-	ethpb "github.com/prysmaticlabs/ethereumapis/eth/v1alpha1"
+	ethpb "github.com/prysmaticlabs/prysm/proto/prysm/v1alpha1"
 )
 
 
@@ -19,6 +19,21 @@ type ChainHead struct {
 	PreviousJustifiedSlot      uint64
 	PreviousJustifiedEpoch     uint64
 	PreviousJustifiedBlockRoot []byte
+}
+
+type FinalityCheckpoints struct {
+	PreviousJustified struct {
+		Epoch uint64 `json:"epoch"`
+		Root  string `json:"root"`
+	} `json:"previous_justified"`
+	CurrentJustified struct {
+		Epoch uint64 `json:"epoch"`
+		Root  string `json:"root"`
+	} `json:"current_justified"`
+	Finalized struct {
+		Epoch uint64 `json:"epoch"`
+		Root  string `json:"root"`
+	} `json:"finalized"`
 }
 
 // EpochData is a struct to hold epoch data
@@ -66,11 +81,14 @@ type Validator struct {
 
 // ValidatorQueue is a struct to hold validator queue data
 type ValidatorQueue struct {
-	ChurnLimit                 uint64
-	ActivationPublicKeys       [][]byte
-	ExitPublicKeys             [][]byte
-	ActivationValidatorIndices []uint64
-	ExitValidatorIndices       []uint64
+	Activating uint64
+	Exititing  uint64
+}
+
+type SyncAggregate struct {
+	SyncCommitteeBits          []byte
+	SyncCommitteeSignature     []byte
+	SyncAggregateParticipation float64
 }
 
 // Block is a struct to hold block data
@@ -91,6 +109,7 @@ type Block struct {
 	Attestations      []*Attestation
 	Deposits          []*Deposit
 	VoluntaryExits    []*VoluntaryExit
+	SyncAggregate     *SyncAggregate // warning: sync aggregate may be nil, for phase0 blocks
 	Canonical         bool
 }
 

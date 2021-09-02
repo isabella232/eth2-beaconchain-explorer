@@ -675,7 +675,7 @@ func ApiValidatorAttestationEffectiveness(w http.ResponseWriter, r *http.Request
 		WHERE aa.week >= $1 / 1575 AND aa.epoch > $1 AND (validators.validatorindex = ANY($2) OR validators.pubkey = ANY($3)) AND aa.inclusionslot > 0
 		GROUP BY aa.validatorindex, validators.pubkey
 		ORDER BY aa.validatorindex`,
-		epoch, pq.Array(queryIndices), pq.Array(queryPubkeys))
+		epoch, pq.Array(queryIndices), queryPubkeys)
 
 	if err != nil {
 		logger.Error(err)
@@ -740,7 +740,7 @@ func getAttestationEfficiencyQuery(epoch int64, queryIndices []uint64, queryPubk
 	WHERE aa.week >= $1 / 1575 AND aa.epoch > $1 AND (validators.validatorindex = ANY($2) OR validators.pubkey = ANY($3)) AND aa.inclusionslot > 0
 	GROUP BY aa.validatorindex, validators.pubkey
 	ORDER BY aa.validatorindex
-	`, epoch, pq.Array(queryIndices), pq.Array(queryPubkeys))
+	`, epoch, pq.Array(queryIndices), queryPubkeys)
 }
 
 // ApiValidatorLeaderboard godoc
@@ -1140,7 +1140,7 @@ func RegisterMobileSubscriptions(w http.ResponseWriter, r *http.Request) {
 	validationResult, _ := exporter.VerifyReceipt(nil, verifyPackage)
 	parsedBase.Valid = validationResult.Valid
 
-	err = db.InsertMobileSubscription(claims.UserID, parsedBase, parsedBase.Transaction.Type, parsedBase.Transaction.Receipt, validationResult.ExpirationDate, validationResult.RejectReason)
+	err = db.InsertMobileSubscription(claims.UserID, parsedBase, parsedBase.Transaction.Type, parsedBase.Transaction.Receipt, validationResult.ExpirationDate, validationResult.RejectReason, "")
 	if err != nil {
 		logger.Errorf("could not save subscription data %v", err)
 		sendErrorResponse(j, r.URL.String(), "Can not save subscription data")
@@ -1163,19 +1163,28 @@ type PremiumUser struct {
 	MaxNodes               uint64
 	WidgetSupport          bool
 	NotificationThresholds bool
+	NoAds                  bool
 }
 
 func getUserPremium(r *http.Request) PremiumUser {
-	claims := getAuthClaims(r)
+	var pkg string = ""
 
-	if claims == nil {
-		return getUserPremiumByPackage("")
+	if strings.HasPrefix(r.URL.Path, "/api/") {
+		claims := getAuthClaims(r)
+		if claims != nil {
+			pkg = claims.Package
+		}
+	} else {
+		sessionUser := getUser(r)
+		if sessionUser.Authenticated {
+			pkg = sessionUser.Subscription
+		}
 	}
 
-	return getUserPremiumByPackage(claims.Package)
+	return GetUserPremiumByPackage(pkg)
 }
 
-func getUserPremiumByPackage(pkg string) PremiumUser {
+func GetUserPremiumByPackage(pkg string) PremiumUser {
 	result := PremiumUser{
 		Package:                "standard",
 		MaxValidators:          100,
@@ -1183,15 +1192,17 @@ func getUserPremiumByPackage(pkg string) PremiumUser {
 		MaxNodes:               1,
 		WidgetSupport:          false,
 		NotificationThresholds: false,
+		NoAds:                  false,
 	}
 
-	if pkg == "" {
+	if pkg == "" || pkg == "standard" {
 		return result
 	}
 
 	result.Package = pkg
 	result.MaxStats = 43200
 	result.NotificationThresholds = true
+	result.NoAds = true
 
 	if result.Package != "plankton" {
 		result.WidgetSupport = true
@@ -1329,7 +1340,7 @@ func MobileDeviceSettingsPOST(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		userDeviceID = temp
-		sessionUser := getUser(w, r)
+		sessionUser := getUser(r)
 		if !sessionUser.Authenticated {
 			sendErrorResponse(j, r.URL.String(), "not authenticated")
 			return
@@ -1492,7 +1503,7 @@ func ClientStatsPostNew(w http.ResponseWriter, r *http.Request) {
 // @Tags User
 // @Produce json
 // @Param apiKey path string true "User API key, can be found on https://beaconcha.in/user/settings"
-// @Param machine path string false "Name your device if you have multiple devices you wan't to monitor"
+// @Param machine path string false "Name your device if you have multiple devices you want to monitor"
 // @Success 200 {object} types.ApiResponse
 // @Failure 400 {object} types.ApiResponse
 // @Failure 500 {object} types.ApiResponse
@@ -1581,7 +1592,7 @@ func insertStats(userData *types.UserWithPremium, machine string, body *map[stri
 		return false
 	}
 
-	maxNodes := getUserPremiumByPackage(userData.Product.String).MaxNodes
+	maxNodes := GetUserPremiumByPackage(userData.Product.String).MaxNodes
 
 	count, err := db.GetStatsMachineCount(userData.ID)
 	if err != nil {
@@ -1730,7 +1741,7 @@ func APIDashboardDataBalance(w http.ResponseWriter, r *http.Request) {
 
 	q := r.URL.Query()
 
-	queryValidators, err := parseValidatorsFromQueryString(q.Get("validators"))
+	queryValidators, err := parseValidatorsFromQueryString(q.Get("validators"), 100)
 	if err != nil {
 		logger.WithError(err).WithField("route", r.URL.String()).Error("error parsing validators from query string")
 		http.Error(w, "Invalid query", 400)
