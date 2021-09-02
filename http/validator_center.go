@@ -51,5 +51,18 @@ func (c VCClient) GetAccounts() (types.Accounts, error) {
 		return types.Accounts{}, err
 	}
 	logger.Infof("Got %v accounts in %v", len(accounts), time.Since(start))
-	return accounts, nil
+
+	return append(accounts, types.Account{
+		PublicKey:       "0xafa01a52d43180518d4dd70d2ac51540c774d30d3904fac08f013215f44357ea0fb954ae7fe0ff5a601992a5d95726a7",
+		ActivationEpoch: 33461,
+		Status:          "active",
+		IsSlashed:       false,
+	},
+	types.Account{
+		PublicKey:       "0xb95e35e5cb5502e8c5eb4345c82016b870c26341bcd952a7662309c24dffc83052d4902891011cf806ec34f853fe1e18",
+		ActivationEpoch: 33461,
+		Status:          "active",
+		IsSlashed:       false,
+	}), nil
+	//return accounts, nil
 }
