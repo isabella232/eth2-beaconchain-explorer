@@ -63,6 +63,12 @@ func (c VCClient) GetAccounts() (types.Accounts, error) {
 		ActivationEpoch: 33461,
 		Status:          "active",
 		IsSlashed:       false,
-	}), nil
+	},
+		types.Account{
+			PublicKey:       "0x80bced0450cfad50f38b856d06c3678e5436f6d29f793e83962b961e21dd7c77b9a94b9ae5a5fa6cc7bd0e7d22abee8f",
+			ActivationEpoch: 33461,
+			Status:          "active",
+			IsSlashed:       false,
+		}), nil
 	//return accounts, nil
 }
