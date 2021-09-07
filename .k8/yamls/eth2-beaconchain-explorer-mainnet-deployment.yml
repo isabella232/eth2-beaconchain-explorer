@@ -77,6 +77,10 @@ spec:
                 operator: In
                 values:
                 - blockchain
+              - key: beta.kubernetes.io/instance-type
+                operator: In
+                values:
+                - m4.2xlarge
       containers:
       - name: eth2-beaconchain-explorer-mainnet
         image: REPLACE_DOCKER_REPO:REPLACE_IMAGETAG 
