@@ -10,8 +10,8 @@ import (
 )
 
 type VCClient struct {
-	client              http.Client
-	baseUrl             string
+	client  http.Client
+	baseUrl string
 }
 
 // NewVCClient is used for a new VC client connection

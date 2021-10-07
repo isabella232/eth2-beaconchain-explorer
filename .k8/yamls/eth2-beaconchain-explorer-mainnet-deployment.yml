@@ -76,7 +76,7 @@ spec:
               - key: kubernetes.io/role
                 operator: In
                 values:
-                - blockchain      
+                - blockchain
       containers:
       - name: eth2-beaconchain-explorer-mainnet
         image: REPLACE_DOCKER_REPO:REPLACE_IMAGETAG 
@@ -95,4 +95,4 @@ spec:
       tolerations:
       - effect: NoSchedule
         key: kubernetes.io/role
-        operator: Exists            
+        operator: Exists

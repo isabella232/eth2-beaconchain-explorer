@@ -93,6 +93,9 @@ type Config struct {
 			Sapphire  string `yaml:"sapphire" envconfig:"FRONTEND_STRIPE_SAPPHIRE"`
 			Emerald   string `yaml:"emerald" envconfig:"FRONTEND_STRIPE_EMERALD"`
 			Diamond   string `yaml:"diamond" envconfig:"FRONTEND_STRIPE_DIAMOND"`
+			Whale     string `yaml:"whale" envconfig:"FRONTEND_STRIPE_WHALE"`
+			Goldfish  string `yaml:"goldfish" envconfig:"FRONTEND_STRIPE_GOLDFISH"`
+			Plankton  string `yaml:"plankton" envconfig:"FRONTEND_STRIPE_PLANKTON"`
 			Webhook   string `yaml:"webhook" envconfig:"FRONTEND_STRIPE_WEBHOOK"`
 		}
 		SessionSecret          string `yaml:"sessionSecret" envconfig:"FRONTEND_SESSION_SECRET"`
@@ -123,6 +126,12 @@ type Config struct {
 			Enabled bool   `yaml:"enabled" envconfig:"FRONTEND_SHOW_DONORS_ENABLED"`
 			URL     string `yaml:"gitcoinURL" envconfig:"FRONTEND_GITCOIN_URL"`
 		} `yaml:"showDonors"`
+		Countdown struct {
+			Enabled   bool   `yaml:"enabled" envconfig:"FRONTEND_COUNTDOWN_ENABLED"`
+			Title     string `yaml:"title" envconfig:"FRONTEND_COUNTDOWN_TITLE"`
+			Timestamp uint64 `yaml:"timestamp" envconfig:"FRONTEND_COUNTDOWN_TIMESTAMP"`
+			Info      string `yaml:"info" envconfig:"FRONTEND_COUNTDOWN_INFO"`
+		} `yaml:"countdown"`
 	} `yaml:"frontend"`
 	Metrics struct {
 		Enabled bool   `yaml:"enabled" envconfig:"METRICS_ENABLED"`
@@ -138,6 +147,11 @@ type Config struct {
 		Enabled bool   `yaml:"enabled" envconfig:"SSV_EXPORTER_ENABLED"`
 		Address string `yaml:"address" envconfig:"SSV_EXPORTER_ADDRESS"`
 	} `yaml:"SSVExporter"`
+	RocketpoolExporter struct {
+		Enabled                   bool   `yaml:"enabled" envconfig:"ROCKETPOOL_EXPORTER_ENABLED"`
+		StorageContractAddress    string `yaml:"storageContractAddress" envconfig:"ROCKETPOOL_EXPORTER_STORAGE_CONTRACT_ADDRESS"`
+		StorageContractFirstBlock uint64 `yaml:"storageContractFirstBlock" envconfig:"ROCKETPOOL_EXPORTER_STORAGE_CONTRACT_FIRST_BLOCK"`
+	} `yaml:"rocketpoolExporter"`
 }
 
 // Phase0 is the config for beacon chain phase0
