@@ -38,7 +38,9 @@ func NewPrysmClient(endpoint string, httpClient httpRest.Client) (*PrysmClient, 
 		// Maximum receive value 128 MB
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(128 * 1024 * 1024)),
 	}
-	conn, err := grpc.Dial(endpoint, dialOpts...)
+	ctx, _ := context.WithTimeout(context.Background(), time.Minute * 5)
+	conn, err := grpc.DialContext(ctx, endpoint, dialOpts...)
+
 	if err != nil {
 		return nil, err
 	}
@@ -255,7 +257,7 @@ func (pc *PrysmClient) GetEpochAssignments(epoch uint64, accounts types.Accounts
 	retryCount := 0
 	for {
 		AssignmentRequestStart := time.Now()
-		logger.Printf("sending ListValidatorAssignments request")
+		logger.Printf("sending ListValidatorAssignments request for %v validators", len(pubeys))
 		validatorAssignmentResponse, err = pc.client.ListValidatorAssignments(ctx, validatorAssignmentRequest)
 		if err != nil {
 			fmt.Printf("ListValidatorAssignments error - %s\n", err.Error())
